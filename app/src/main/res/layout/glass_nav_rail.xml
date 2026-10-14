@@ -7,20 +7,19 @@
     android:layout_gravity="end|bottom"
     android:layout_marginEnd="12dp"
     android:layout_marginBottom="12dp"
-    android:elevation="16dp"
+    android:elevation="12dp"
     android:background="@drawable/glass_pill_bg">
 
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingVertical="6dp"
-        android:paddingHorizontal="4dp">
+        android:padding="5dp">
 
-        <!-- Active item sliding red glass capsule indicator (#E53935 at 35% alpha) -->
+        <!-- Active item sliding crimson liquid glass capsule indicator -->
         <View
             android:id="@+id/rail_active_capsule"
             android:layout_width="match_parent"
-            android:layout_height="52dp"
+            android:layout_height="46dp"
             android:background="@drawable/glass_active_capsule" />
 
         <LinearLayout
@@ -32,7 +31,7 @@
             <LinearLayout
                 android:id="@+id/rail_home"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="46dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
                 android:contentDescription="@string/rail_home"
@@ -42,8 +41,8 @@
 
                 <ImageView
                     android:id="@+id/rail_icon_home"
-                    android:layout_width="@dimen/glass_icon_size"
-                    android:layout_height="@dimen/glass_icon_size"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_home"
                     app:tint="@color/glass_text_primary" />
@@ -52,11 +51,12 @@
                     android:id="@+id/rail_text_home"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
+                    android:layout_marginTop="1dp"
+                    android:includeFontPadding="false"
                     android:maxLines="1"
                     android:text="@string/rail_home"
                     android:textColor="@color/glass_text_primary"
-                    android:textSize="10sp"
+                    android:textSize="9.5sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -64,7 +64,7 @@
             <LinearLayout
                 android:id="@+id/rail_subscriptions"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="46dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
                 android:contentDescription="@string/rail_subscriptions"
@@ -74,8 +74,8 @@
 
                 <ImageView
                     android:id="@+id/rail_icon_subscriptions"
-                    android:layout_width="@dimen/glass_icon_size"
-                    android:layout_height="@dimen/glass_icon_size"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_subscriptions"
                     app:tint="@color/glass_text_secondary" />
@@ -84,11 +84,12 @@
                     android:id="@+id/rail_text_subscriptions"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
+                    android:layout_marginTop="1dp"
+                    android:includeFontPadding="false"
                     android:maxLines="1"
                     android:text="@string/rail_subscriptions"
                     android:textColor="@color/glass_text_secondary"
-                    android:textSize="10sp"
+                    android:textSize="9.5sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -96,7 +97,7 @@
             <LinearLayout
                 android:id="@+id/rail_library"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="46dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
                 android:contentDescription="@string/rail_library"
@@ -106,8 +107,8 @@
 
                 <ImageView
                     android:id="@+id/rail_icon_library"
-                    android:layout_width="@dimen/glass_icon_size"
-                    android:layout_height="@dimen/glass_icon_size"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_bookmark"
                     app:tint="@color/glass_text_secondary" />
@@ -116,11 +117,12 @@
                     android:id="@+id/rail_text_library"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
+                    android:layout_marginTop="1dp"
+                    android:includeFontPadding="false"
                     android:maxLines="1"
                     android:text="@string/rail_library"
                     android:textColor="@color/glass_text_secondary"
-                    android:textSize="10sp"
+                    android:textSize="9.5sp"
                     android:textStyle="bold" />
             </LinearLayout>
 

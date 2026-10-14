@@ -23,6 +23,9 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.database.ContentObserver;
 import android.graphics.Color;
+import android.graphics.Bitmap;
+import android.graphics.RenderEffect;
+import android.graphics.Shader;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
@@ -35,13 +38,14 @@ import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
+import android.view.PixelCopy;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
-import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import androidx.annotation.AttrRes;
@@ -54,6 +58,7 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
 import androidx.preference.PreferenceManager;
 
 import com.evernote.android.state.State;
@@ -115,7 +120,6 @@ import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.PermissionHelper;
 import org.schabi.newpipe.util.PlayButtonHelper;
 import org.schabi.newpipe.util.StreamTypeUtil;
-import org.schabi.newpipe.util.ThemeHelper;
 import org.schabi.newpipe.util.external_communication.KoreUtils;
 import org.schabi.newpipe.util.external_communication.ShareUtils;
 import org.schabi.newpipe.util.image.CoilHelper;
@@ -142,7 +146,6 @@ public final class VideoDetailFragment
         OnKeyDownListener {
     public static final String KEY_SWITCHING_PLAYERS = "switching_players";
 
-    private static final float MAX_OVERLAY_ALPHA = 1.0f;
     private static final float MAX_PLAYER_HEIGHT = 0.7f;
 
     public static final String ACTION_SHOW_MAIN_PLAYER =
@@ -173,6 +176,11 @@ public final class VideoDetailFragment
     @NonNull
     final List<Integer> tabContentDescriptions = new ArrayList<>();
     private boolean tabSettingsChanged = false;
+    private FragmentManager.OnBackStackChangedListener playerBackStackListener;
+    private final Handler ambientHandler = new Handler(Looper.getMainLooper());
+    private boolean ambientCapturePending;
+    private final Runnable ambientFrame = this::captureAmbientFrame;
+
     private int lastAppBarVerticalOffset = Integer.MAX_VALUE; // prevents useless updates
 
     private final SharedPreferences.OnSharedPreferenceChangeListener preferenceChangeListener =
@@ -350,6 +358,7 @@ public final class VideoDetailFragment
     @Override
     public void onPause() {
         super.onPause();
+        ambientHandler.removeCallbacks(ambientFrame);
         if (currentWorker != null) {
             currentWorker.dispose();
         }
@@ -369,6 +378,8 @@ public final class VideoDetailFragment
         }
 
         activity.sendBroadcast(new Intent(ACTION_VIDEO_FRAGMENT_RESUMED));
+        ambientHandler.removeCallbacks(ambientFrame);
+        ambientHandler.post(ambientFrame);
 
         updateOverlayPlayQueueButtonVisibility();
 
@@ -434,6 +445,18 @@ public final class VideoDetailFragment
 
     @Override
     public void onDestroyView() {
+        if (playerBackStackListener != null) {
+            getParentFragmentManager().removeOnBackStackChangedListener(playerBackStackListener);
+            playerBackStackListener = null;
+        }
+        if (bottomSheetBehavior != null && bottomSheetCallback != null) {
+            bottomSheetBehavior.removeBottomSheetCallback(bottomSheetCallback);
+        }
+        ambientHandler.removeCallbacks(ambientFrame);
+        if (binding != null) {
+            CoilUtils.dispose(binding.detailAmbientBackdrop);
+            binding.detailAmbientBackdrop.setImageDrawable(null);
+        }
         super.onDestroyView();
         binding = null;
     }
@@ -676,6 +699,23 @@ public final class VideoDetailFragment
             }
         });
 
+        final eightbitlab.com.blurview.BlurTarget blurTarget =
+                activity.findViewById(R.id.blur_target);
+        if (blurTarget != null) {
+            org.schabi.newpipe.views.glass.GlassDrawable.setupBlurView(
+                    binding.miniBackdrop, blurTarget,
+                    org.schabi.newpipe.views.glass.GlassDrawable.RADIUS_20);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            final float radius = DeviceUtils.dpToPx(64, requireContext());
+            binding.detailAmbientBackdrop.setRenderEffect(RenderEffect.createBlurEffect(
+                    radius, radius, Shader.TileMode.CLAMP));
+        }
+        binding.getRoot().addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (binding != null && r - l != or - ol) {
+                setHeightThumbnail();
+            }
+        });
         setupBottomPlayer();
         if (!playerHolder.isBound()) {
             setHeightThumbnail();
@@ -1000,7 +1040,7 @@ public final class VideoDetailFragment
             // is up to date and not being currently recomputed
             binding.tabLayout.post(() -> {
                 final var activity = getActivity();
-                if (activity != null) {
+                if (activity != null && binding != null) {
                     final Rect pagerHitRect = new Rect();
                     binding.viewPager.getHitRect(pagerHitRect);
 
@@ -1276,7 +1316,7 @@ public final class VideoDetailFragment
     }
 
     private void tryAddVideoPlayerView() {
-        if (isPlayerAvailable() && getView() != null) {
+        if (binding != null && isPlayerAvailable() && getView() != null) {
             // Setup the surface view height, so that it fits the video correctly; this is done also
             // here, and not only in the Handler, to avoid a choppy fullscreen rotation animation.
             setHeightThumbnail();
@@ -1285,7 +1325,7 @@ public final class VideoDetailFragment
         // do all the null checks in the posted lambda, too, since the player, the binding and the
         // view could be set or unset before the lambda gets executed on the next main thread cycle
         new Handler(Looper.getMainLooper()).post(() -> {
-            if (!isPlayerAvailable() || getView() == null) {
+            if (binding == null || !isPlayerAvailable() || getView() == null) {
                 return;
             }
 
@@ -1305,6 +1345,11 @@ public final class VideoDetailFragment
                         binding.playerPlaceholder.addView(playerUi.getBinding().getRoot());
                     }
                     playerUi.setupVideoSurfaceIfNeeded();
+                    if (bottomSheetState == BottomSheetBehavior.STATE_COLLAPSED) {
+                        CoilUtils.dispose(binding.overlayThumbnail);
+                        binding.overlayThumbnail.setImageDrawable(null);
+                        playerUiHideControls();
+                    }
                 }
             });
         });
@@ -1375,15 +1420,59 @@ public final class VideoDetailFragment
     }
 
     private void setHeightThumbnail(final int newHeight, final DisplayMetrics metrics) {
-        binding.detailThumbnailImageView.setLayoutParams(
-                new FrameLayout.LayoutParams(
-                        RelativeLayout.LayoutParams.MATCH_PARENT, newHeight));
-        binding.detailThumbnailImageView.setMinimumHeight(newHeight);
+        final boolean minimized = lastStableBottomSheetState == BottomSheetBehavior.STATE_COLLAPSED;
+        final int miniWidth = Math.min(
+                getResources().getDimensionPixelSize(R.dimen.mini_player_width),
+                metrics.widthPixels - DeviceUtils.dpToPx(40, requireContext()));
+        final int videoHeight = minimized ? miniWidth * 9 / 16 : newHeight;
+        final int videoWidth;
+        if (minimized) {
+            videoWidth = miniWidth;
+        } else if (isFullscreen() || binding.detailMainContent.getWidth() == 0) {
+            videoWidth = FrameLayout.LayoutParams.MATCH_PARENT;
+        } else {
+            videoWidth = binding.detailMainContent.getWidth();
+        }
+        final FrameLayout.LayoutParams videoParams = new FrameLayout.LayoutParams(
+                videoWidth, videoHeight);
+        if (minimized) {
+            videoParams.topMargin = DeviceUtils.dpToPx(8, requireContext());
+            videoParams.setMarginStart(DeviceUtils.dpToPx(8, requireContext()));
+        }
+        binding.detailThumbnailRootLayout.setLayoutParams(videoParams);
+        binding.detailThumbnailRootLayout.setBackgroundResource(minimized
+                ? R.drawable.frost_mini_player_bg : android.R.color.black);
+        binding.detailThumbnailRootLayout.setClipToOutline(minimized);
+        if (minimized) {
+            final ViewGroup.LayoutParams overlayParams = binding.overlayLayout.getLayoutParams();
+            overlayParams.height = videoHeight;
+            binding.overlayLayout.setLayoutParams(overlayParams);
+            final var insets = androidx.core.view.ViewCompat.getRootWindowInsets(binding.getRoot());
+            final int bottomInset = insets == null ? 0 : insets.getInsets(
+                    androidx.core.view.WindowInsetsCompat.Type.systemBars()).bottom;
+            if (bottomSheetBehavior != null) {
+                bottomSheetBehavior.setPeekHeight(videoHeight
+                        + DeviceUtils.dpToPx(16, requireContext()) + bottomInset);
+            }
+        }
+        binding.detailThumbnailImageView.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        binding.detailThumbnailImageView.setMinimumHeight(0);
+        final ViewGroup.MarginLayoutParams contentParams =
+                (ViewGroup.MarginLayoutParams) binding.detailMainContent.getLayoutParams();
+        contentParams.topMargin = minimized || isFullscreen() ? 0 : videoHeight;
+        binding.detailMainContent.setLayoutParams(contentParams);
+        binding.detailMainContent.setVisibility(minimized || isFullscreen()
+                ? View.INVISIBLE : View.VISIBLE);
+        if (binding.relatedItemsLayout != null) {
+            final boolean hideRelated = minimized || isFullscreen() || !showRelatedItems;
+            binding.relatedItemsLayout.setVisibility(hideRelated ? View.GONE : View.VISIBLE);
+        }
         if (isPlayerAvailable()) {
             final int maxHeight = (int) (metrics.heightPixels * MAX_PLAYER_HEIGHT);
             player.UIs().get(VideoPlayerUi.class).ifPresent(ui ->
-                    ui.getBinding().surfaceView.setHeights(newHeight,
-                            ui.isFullscreen() ? newHeight : maxHeight));
+                    ui.getBinding().surfaceView.setHeights(videoHeight,
+                            minimized || ui.isFullscreen() ? videoHeight : maxHeight));
         }
     }
 
@@ -1520,6 +1609,8 @@ public final class VideoDetailFragment
         }
 
         CoilUtils.dispose(binding.detailThumbnailImageView);
+        CoilUtils.dispose(binding.detailAmbientBackdrop);
+        binding.detailAmbientBackdrop.setImageDrawable(null);
         CoilUtils.dispose(binding.detailSubChannelThumbnailView);
         CoilUtils.dispose(binding.overlayThumbnail);
         CoilUtils.dispose(binding.detailUploaderThumbnailView);
@@ -1614,6 +1705,8 @@ public final class VideoDetailFragment
 
         checkUpdateProgressInfo(info);
         CoilHelper.INSTANCE.loadDetailsThumbnail(binding.detailThumbnailImageView,
+                info.getThumbnails());
+        CoilHelper.INSTANCE.loadDetailsThumbnail(binding.detailAmbientBackdrop,
                 info.getThumbnails());
         showMetaInfoInTextView(info.getMetaInfo(), binding.detailMetaInfoTextView,
                 binding.detailMetaInfoSeparator, disposables);
@@ -1828,7 +1921,13 @@ public final class VideoDetailFragment
                                  final int repeatMode,
                                  final boolean shuffled,
                                  final PlaybackParameters parameters) {
+        if (binding == null) {
+            return;
+        }
         setOverlayPlayPauseImage(player != null && player.isPlaying());
+        if (bottomSheetState == BottomSheetBehavior.STATE_COLLAPSED) {
+            playerUiHideControls();
+        }
 
         switch (state) {
             case Player.STATE_PLAYING:
@@ -1847,7 +1946,14 @@ public final class VideoDetailFragment
     public void onProgressUpdate(final int currentProgress,
                                  final int duration,
                                  final int bufferPercent) {
-        // Progress updates every second even if media is paused. It's useless until playing
+        if (binding == null || player == null || player.getPlayQueue() == null
+                || player.getPlayQueue().getItem() == null) {
+            return;
+        }
+        binding.overlayProgressBar.setMax(Math.max(1, duration));
+        binding.overlayProgressBar.setProgress(currentProgress);
+        binding.overlayProgressBar.setSecondaryProgress((int) (duration * (bufferPercent / 100f)));
+        // Keep the mini progress accurate when paused or seeking, too.
         if (!player.isPlaying() || playQueue == null) {
             return;
         }
@@ -2000,8 +2106,7 @@ public final class VideoDetailFragment
         }
         activity.getWindow().getDecorView().setSystemUiVisibility(0);
         activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        activity.getWindow().setStatusBarColor(ThemeHelper.resolveColorFromAttr(
-                requireContext(), android.R.attr.colorPrimary));
+        activity.getWindow().setStatusBarColor(Color.TRANSPARENT);
     }
 
     private void hideSystemUi() {
@@ -2342,10 +2447,6 @@ public final class VideoDetailFragment
     }
 
     private void setupBottomPlayer() {
-        final CoordinatorLayout.LayoutParams params =
-                (CoordinatorLayout.LayoutParams) binding.appBarLayout.getLayoutParams();
-        final AppBarLayout.Behavior behavior = (AppBarLayout.Behavior) params.getBehavior();
-
         final FrameLayout bottomSheetLayout = activity.findViewById(R.id.fragment_player_holder);
         bottomSheetBehavior = BottomSheetBehavior.from(bottomSheetLayout);
         bottomSheetBehavior.setState(lastStableBottomSheetState);
@@ -2353,14 +2454,9 @@ public final class VideoDetailFragment
 
         final int peekHeight = getResources().getDimensionPixelSize(R.dimen.mini_player_height);
         if (bottomSheetState != BottomSheetBehavior.STATE_HIDDEN) {
-            manageSpaceAtTheBottom(false);
+            manageSpaceAtTheBottom(true);
             bottomSheetBehavior.setPeekHeight(peekHeight);
-            if (bottomSheetState == BottomSheetBehavior.STATE_COLLAPSED) {
-                binding.overlayLayout.setAlpha(MAX_OVERLAY_ALPHA);
-            } else if (bottomSheetState == BottomSheetBehavior.STATE_EXPANDED) {
-                binding.overlayLayout.setAlpha(0);
-                setOverlayElementsClickable(false);
-            }
+            setOverlayElementsClickable(bottomSheetState == BottomSheetBehavior.STATE_COLLAPSED);
         }
 
         bottomSheetCallback = new BottomSheetBehavior.BottomSheetCallback() {
@@ -2378,7 +2474,7 @@ public final class VideoDetailFragment
                         break;
                     case BottomSheetBehavior.STATE_EXPANDED:
                         moveFocusToMainFragment(false);
-                        manageSpaceAtTheBottom(false);
+                        manageSpaceAtTheBottom(true);
 
                         bottomSheetBehavior.setPeekHeight(peekHeight);
                         // Disable click because overlay buttons located on top of buttons
@@ -2394,11 +2490,11 @@ public final class VideoDetailFragment
                             player.UIs().get(MainPlayerUi.class)
                                     .ifPresent(MainPlayerUi::toggleFullscreen);
                         }
-                        setOverlayLook(binding.appBarLayout, behavior, 1);
+                        updatePlayerPresentation();
                         break;
                     case BottomSheetBehavior.STATE_COLLAPSED:
                         moveFocusToMainFragment(true);
-                        manageSpaceAtTheBottom(false);
+                        manageSpaceAtTheBottom(true);
 
                         bottomSheetBehavior.setPeekHeight(peekHeight);
 
@@ -2408,7 +2504,7 @@ public final class VideoDetailFragment
                             player.UIs().get(MainPlayerUi.class)
                                     .ifPresent(MainPlayerUi::closeItemsList);
                         }
-                        setOverlayLook(binding.appBarLayout, behavior, 0);
+                        updatePlayerPresentation();
                         break;
                     case BottomSheetBehavior.STATE_DRAGGING:
                     case BottomSheetBehavior.STATE_SETTLING:
@@ -2430,29 +2526,29 @@ public final class VideoDetailFragment
 
             @Override
             public void onSlide(@NonNull final View bottomSheet, final float slideOffset) {
-                setOverlayLook(binding.appBarLayout, behavior, slideOffset);
+                if (binding != null) {
+                    // Resize only at stable states, not on every animation frame.
+                    binding.overlayLayout.setAlpha(1 - Math.max(0, slideOffset));
+                }
             }
         };
 
         bottomSheetBehavior.addBottomSheetCallback(bottomSheetCallback);
 
         // User opened a new page and the player will hide itself
-        activity.getSupportFragmentManager().addOnBackStackChangedListener(() -> {
-            if (bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED) {
+        playerBackStackListener = () -> {
+            if (binding != null
+                    && bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED) {
                 bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
             }
-        });
+        };
+        getParentFragmentManager().addOnBackStackChangedListener(playerBackStackListener);
+        updatePlayerPresentation();
     }
 
     private void updateOverlayPlayQueueButtonVisibility() {
-        final boolean isPlayQueueEmpty =
-                player == null // no player => no play queue :)
-                        || player.getPlayQueue() == null
-                        || player.getPlayQueue().isEmpty();
         if (binding != null) {
-            // binding is null when rotating the device...
-            binding.overlayPlayQueueButton.setVisibility(
-                    isPlayQueueEmpty ? View.GONE : View.VISIBLE);
+            binding.overlayPlayQueueButton.setVisibility(View.GONE);
         }
     }
 
@@ -2461,8 +2557,15 @@ public final class VideoDetailFragment
                                    @NonNull final List<Image> thumbnails) {
         binding.overlayTitleTextView.setText(isEmpty(overlayTitle) ? "" : overlayTitle);
         binding.overlayChannelTextView.setText(isEmpty(uploader) ? "" : uploader);
+        binding.overlayThumbnail.setContentDescription(getString(R.string.expand_video,
+                isEmpty(overlayTitle) ? "" : overlayTitle));
+        CoilUtils.dispose(binding.overlayThumbnail);
         binding.overlayThumbnail.setImageDrawable(null);
-        CoilHelper.INSTANCE.loadDetailsThumbnail(binding.overlayThumbnail, thumbnails);
+        // The actual video surface stays visible underneath the transparent expand button.
+        // Use artwork only for audio/background playback, never over a live video.
+        if (player == null || !player.videoPlayerSelected()) {
+            CoilHelper.INSTANCE.loadDetailsThumbnail(binding.overlayThumbnail, thumbnails);
+        }
     }
 
     private void setOverlayPlayPauseImage(final boolean playerIsPlaying) {
@@ -2470,21 +2573,85 @@ public final class VideoDetailFragment
                 ? R.drawable.ic_pause
                 : R.drawable.ic_play_arrow;
         binding.overlayPlayPauseButton.setImageResource(drawable);
+        binding.overlayPlayPauseButton.setContentDescription(getString(
+                playerIsPlaying ? R.string.pause : R.string.play));
     }
 
-    private void setOverlayLook(final AppBarLayout appBar,
-                                final AppBarLayout.Behavior behavior,
-                                final float slideOffset) {
-        // SlideOffset < 0 when mini player is about to close via swipe.
-        // Stop animation in this case
-        if (behavior == null || slideOffset < 0) {
+    private void updatePlayerPresentation() {
+        if (binding == null) {
             return;
         }
-        binding.overlayLayout.setAlpha(Math.min(MAX_OVERLAY_ALPHA, 1 - slideOffset));
-        // These numbers are not special. They just do a cool transition
-        behavior.setTopAndBottomOffset(
-                (int) (-binding.detailThumbnailImageView.getHeight() * 2 * (1 - slideOffset) / 3));
-        appBar.requestLayout();
+        final boolean minimized = bottomSheetState == BottomSheetBehavior.STATE_COLLAPSED;
+        // Do not scroll/translate the video during sheet gestures. Only its bounds change
+        // at stable states, preserving the decoder, queue and native video surface.
+        final FrameLayout holder = activity.findViewById(R.id.fragment_player_holder);
+        final CoordinatorLayout.LayoutParams holderParams =
+                (CoordinatorLayout.LayoutParams) holder.getLayoutParams();
+        final int miniWidth = Math.min(
+                getResources().getDimensionPixelSize(R.dimen.mini_player_width),
+                getResources().getDisplayMetrics().widthPixels
+                        - DeviceUtils.dpToPx(40, requireContext()));
+        holderParams.width = minimized ? miniWidth + DeviceUtils.dpToPx(16, requireContext())
+                : ViewGroup.LayoutParams.MATCH_PARENT;
+        holderParams.gravity = minimized ? Gravity.RIGHT : Gravity.CENTER_HORIZONTAL;
+        holderParams.rightMargin = minimized ? DeviceUtils.dpToPx(8, requireContext()) : 0;
+        holder.setLayoutParams(holderParams);
+        binding.detailAmbientBackdrop.setVisibility(minimized ? View.GONE : View.VISIBLE);
+        binding.overlayLayout.setVisibility(minimized ? View.VISIBLE : View.GONE);
+        // The video itself is the mini player's content; no second bottom strip or artwork.
+        binding.miniBackdrop.setVisibility(View.GONE);
+        binding.overlayLayout.setAlpha(1);
+        binding.getRoot().setBackgroundResource(minimized
+                ? android.R.color.transparent : R.drawable.frost_window_bg);
+        binding.getRoot().setClickable(!minimized);
+        binding.getRoot().setLongClickable(!minimized);
+        binding.appBarLayout.setExpanded(true, false);
+        if (minimized) {
+            playerUiHideControls();
+        }
+        setHeightThumbnail();
+    }
+
+    private void captureAmbientFrame() {
+        if (binding == null || !isResumed()) {
+            return;
+        }
+        ambientHandler.postDelayed(ambientFrame, 1200);
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N || ambientCapturePending
+                || player == null || !player.isPlaying()
+                || lastStableBottomSheetState != BottomSheetBehavior.STATE_EXPANDED
+                || isFullscreen()) {
+            return;
+        }
+        player.UIs().get(MainPlayerUi.class).ifPresent(ui -> {
+            final var surface = ui.getBinding().surfaceView;
+            if (!surface.getHolder().getSurface().isValid()) {
+                return;
+            }
+            final FragmentVideoDetailBinding expectedBinding = binding;
+            final Bitmap frame = Bitmap.createBitmap(96, 54, Bitmap.Config.ARGB_8888);
+            ambientCapturePending = true;
+            try {
+                PixelCopy.request(surface, frame, result -> {
+                    ambientCapturePending = false;
+                    if (result == PixelCopy.SUCCESS && binding == expectedBinding && isResumed()) {
+                        CoilUtils.dispose(binding.detailAmbientBackdrop);
+                        binding.detailAmbientBackdrop.setImageBitmap(frame);
+                    } else {
+                        frame.recycle();
+                    }
+                }, ambientHandler);
+            } catch (final IllegalArgumentException error) {
+                ambientCapturePending = false;
+                frame.recycle();
+            }
+        });
+    }
+
+    private void playerUiHideControls() {
+        if (player != null) {
+            player.UIs().get(MainPlayerUi.class).ifPresent(ui -> ui.hideControls(0, 0));
+        }
     }
 
     private void setOverlayElementsClickable(final boolean enable) {
