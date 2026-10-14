@@ -38,7 +38,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewOutlineProvider;
 import android.webkit.WebView;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -105,6 +104,12 @@ import org.schabi.newpipe.util.StateSaver;
 import org.schabi.newpipe.util.ThemeHelper;
 import org.schabi.newpipe.util.external_communication.ShareUtils;
 import org.schabi.newpipe.views.FocusOverlayView;
+
+import org.schabi.newpipe.views.glass.GlassDrawable;
+
+import org.schabi.newpipe.views.glass.GlassMotion;
+
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -186,7 +191,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         setSupportActionBar(toolbarLayoutBinding.toolbar);
+        GlassDrawable.setupBlurView(
+                toolbarLayoutBinding.headerBackdrop, mainBinding.blurTarget, 0);
+        toolbarLayoutBinding.toolbarSearchContainer.getRoot().setBackground(
+                GlassDrawable.createPill(this));
         setupGlassRail();
+        setupLiquidStatusBar();
         try {
             setupDrawer();
         } catch (final Exception e) {
@@ -217,6 +227,33 @@ public class MainActivity extends AppCompatActivity {
         }
 
         MigrationManager.showUserInfoIfPresent(this);
+    }
+
+    private void setupLiquidStatusBar() {
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        final var controller = androidx.core.view.WindowCompat.getInsetsController(
+                getWindow(), mainBinding.getRoot());
+        controller.setAppearanceLightStatusBars(false);
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(
+                toolbarLayoutBinding.getRoot(), (view, insets) -> {
+                    final int top = insets.getInsets(
+                            androidx.core.view.WindowInsetsCompat.Type.systemBars()).top;
+                    final int actionBarHeight = toolbarLayoutBinding.toolbar.getMinimumHeight();
+                    view.setPadding(0, top, 0, 0);
+                    final View backdrop = toolbarLayoutBinding.headerBackdrop;
+                    final ViewGroup.LayoutParams backdropParams = backdrop.getLayoutParams();
+                    backdropParams.height = actionBarHeight + top;
+                    backdrop.setLayoutParams(backdropParams);
+                    backdrop.setTranslationY(-top);
+                    final ViewGroup.MarginLayoutParams holderParams =
+                            (ViewGroup.MarginLayoutParams) mainBinding.fragmentHolder
+                                    .getLayoutParams();
+                    holderParams.topMargin = actionBarHeight + top;
+                    mainBinding.fragmentHolder.setLayoutParams(holderParams);
+                    return insets;
+                });
+        androidx.core.view.ViewCompat.requestApplyInsets(mainBinding.getRoot());
     }
 
     @Override
@@ -255,19 +292,21 @@ public class MainActivity extends AppCompatActivity {
     private void setupGlassRail() {
         final GlassNavRailBinding rail = mainBinding.glassRail;
 
-        // Apply Phase 0.5 Glass Design System (Full radius, real backdrop blur, grain, specular highlight)
-        org.schabi.newpipe.views.glass.GlassDrawable.setupBlurView(
-                rail.getRoot(), mainBinding.blurTarget, org.schabi.newpipe.views.glass.GlassDrawable.RADIUS_FULL);
+        // Apply two-layer liquid glass surfaces: outer capsule + inner crimson bloom capsule
+        GlassDrawable.setupBlurView(
+                rail.getRoot(), mainBinding.blurTarget, GlassDrawable.RADIUS_FULL);
+        rail.railActiveCapsule.setBackground(GlassDrawable.createActiveCapsule(this));
 
         // Apply 150ms press spring scale to rail items
-        org.schabi.newpipe.views.glass.GlassMotion.applyPressScale(rail.railHome);
-        org.schabi.newpipe.views.glass.GlassMotion.applyPressScale(rail.railSubscriptions);
-        org.schabi.newpipe.views.glass.GlassMotion.applyPressScale(rail.railLibrary);
+        GlassMotion.applyPressScale(rail.railHome);
+        GlassMotion.applyPressScale(rail.railSubscriptions);
+        GlassMotion.applyPressScale(rail.railLibrary);
 
         rail.railHome.setOnClickListener(v -> {
             final Fragment f = getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
             if (f instanceof MainFragment) {
-                getSupportFragmentManager().popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+                getSupportFragmentManager().popBackStack(null,
+                        FragmentManager.POP_BACK_STACK_INCLUSIVE);
             } else {
                 NavigationHelper.openMainFragment(getSupportFragmentManager());
             }
@@ -277,7 +316,8 @@ public class MainActivity extends AppCompatActivity {
         rail.railLibrary.setOnClickListener(v -> openLibraryHub());
 
         // Listen for WindowInsets dynamically (no hardcoded status/nav bar heights)
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(mainBinding.getRoot(), (v, insets) -> {
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(
+                mainBinding.getRoot(), (v, insets) -> {
             final androidx.core.graphics.Insets bars = insets.getInsets(
                     androidx.core.view.WindowInsetsCompat.Type.systemBars());
             systemBarBottomInset = bars.bottom;
@@ -292,18 +332,18 @@ public class MainActivity extends AppCompatActivity {
         });
 
         try {
-            final com.google.android.material.bottomsheet.BottomSheetBehavior<?> bsb =
-                    com.google.android.material.bottomsheet.BottomSheetBehavior.from(
+            final BottomSheetBehavior<?> bsb =
+                    BottomSheetBehavior.from(
                             mainBinding.fragmentPlayerHolder);
             bsb.addBottomSheetCallback(
-                    new com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback() {
+                    new BottomSheetBehavior.BottomSheetCallback() {
                 @Override
                 public void onStateChanged(@NonNull final View bottomSheet, final int newState) {
                     updateRailPosition();
-                    if (newState == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED) {
+                    if (newState == BottomSheetBehavior.STATE_EXPANDED) {
                         rail.getRoot().setVisibility(View.GONE);
-                    } else if (newState == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
-                            || newState == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN) {
+                    } else if (newState == BottomSheetBehavior.STATE_COLLAPSED
+                            || newState == BottomSheetBehavior.STATE_HIDDEN) {
                         rail.getRoot().setVisibility(View.VISIBLE);
                         rail.getRoot().setAlpha(1f);
                     }
@@ -334,21 +374,21 @@ public class MainActivity extends AppCompatActivity {
     private void updateRailPosition() {
         final GlassNavRailBinding rail = mainBinding.glassRail;
         final ViewGroup.LayoutParams baseLp = rail.getRoot().getLayoutParams();
-        if (!(baseLp instanceof androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)) {
+        if (!(baseLp instanceof CoordinatorLayout.LayoutParams)) {
             return;
         }
-        final androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams lp =
-                (androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams) baseLp;
+        final CoordinatorLayout.LayoutParams lp =
+                (CoordinatorLayout.LayoutParams) baseLp;
 
         final int margin12 = (int) (12 * getResources().getDisplayMetrics().density);
         lp.rightMargin = margin12;
 
         int miniPlayerOffset = 0;
         try {
-            final com.google.android.material.bottomsheet.BottomSheetBehavior<?> bsb =
-                    com.google.android.material.bottomsheet.BottomSheetBehavior.from(
+            final BottomSheetBehavior<?> bsb =
+                    BottomSheetBehavior.from(
                             mainBinding.fragmentPlayerHolder);
-            if (bsb.getState() == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED) {
+            if (bsb.getState() == BottomSheetBehavior.STATE_COLLAPSED) {
                 miniPlayerOffset = bsb.getPeekHeight();
             }
         } catch (final Exception ignored) {
@@ -382,20 +422,24 @@ public class MainActivity extends AppCompatActivity {
         rail.railSubscriptions.setSelected(isSubs);
         rail.railLibrary.setSelected(isLib);
 
-        final View targetView = isSubs ? rail.railSubscriptions : (isLib ? rail.railLibrary : rail.railHome);
-        targetView.post(() -> org.schabi.newpipe.views.glass.GlassMotion.slideIndicator(
+        final View targetView = isSubs ? rail.railSubscriptions
+                : (isLib ? rail.railLibrary : rail.railHome);
+        targetView.post(() -> GlassMotion.slideIndicator(
                 rail.railActiveCapsule, targetView.getTop()));
 
-        final int primaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.glass_text_primary);
-        final int secondaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.glass_text_secondary);
+        final int primaryColor = ContextCompat.getColor(this, R.color.glass_text_primary);
+        final int secondaryColor = ContextCompat.getColor(this, R.color.glass_text_secondary);
 
-        rail.railIconHome.setImageTintList(android.content.res.ColorStateList.valueOf(isHome ? primaryColor : secondaryColor));
+        rail.railIconHome.setImageTintList(android.content.res.ColorStateList.valueOf(
+                isHome ? primaryColor : secondaryColor));
         rail.railTextHome.setTextColor(isHome ? primaryColor : secondaryColor);
 
-        rail.railIconSubscriptions.setImageTintList(android.content.res.ColorStateList.valueOf(isSubs ? primaryColor : secondaryColor));
+        rail.railIconSubscriptions.setImageTintList(android.content.res.ColorStateList.valueOf(
+                isSubs ? primaryColor : secondaryColor));
         rail.railTextSubscriptions.setTextColor(isSubs ? primaryColor : secondaryColor);
 
-        rail.railIconLibrary.setImageTintList(android.content.res.ColorStateList.valueOf(isLib ? primaryColor : secondaryColor));
+        rail.railIconLibrary.setImageTintList(android.content.res.ColorStateList.valueOf(
+                isLib ? primaryColor : secondaryColor));
         rail.railTextLibrary.setTextColor(isLib ? primaryColor : secondaryColor);
     }
 

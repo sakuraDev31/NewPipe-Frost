@@ -2,49 +2,49 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_selected="true">
         <inset
-            android:insetBottom="5dp"
-            android:insetLeft="3dp"
-            android:insetRight="3dp"
-            android:insetTop="5dp">
+            android:insetBottom="4dp"
+            android:insetLeft="4dp"
+            android:insetRight="4dp"
+            android:insetTop="4dp">
             <shape android:shape="rectangle">
                 <gradient
                     android:angle="270"
-                    android:startColor="#FF2B56"
-                    android:endColor="#D50000" />
+                    android:startColor="#66FF3256"
+                    android:endColor="#3DE5193B" />
                 <stroke
                     android:width="1dp"
-                    android:color="#80FF80AB" />
-                <corners android:radius="20dp" />
+                    android:color="#99FF6E8E" />
+                <corners android:radius="22dp" />
             </shape>
         </inset>
     </item>
     <item android:state_pressed="true">
         <inset
-            android:insetBottom="5dp"
-            android:insetLeft="3dp"
-            android:insetRight="3dp"
-            android:insetTop="5dp">
+            android:insetBottom="4dp"
+            android:insetLeft="4dp"
+            android:insetRight="4dp"
+            android:insetTop="4dp">
             <shape android:shape="rectangle">
-                <solid android:color="#33FFFFFF" />
+                <solid android:color="#1FFFFFFF" />
                 <stroke
                     android:width="1dp"
-                    android:color="#4DFFFFFF" />
-                <corners android:radius="20dp" />
+                    android:color="#38FFFFFF" />
+                <corners android:radius="22dp" />
             </shape>
         </inset>
     </item>
     <item>
         <inset
-            android:insetBottom="5dp"
-            android:insetLeft="3dp"
-            android:insetRight="3dp"
-            android:insetTop="5dp">
+            android:insetBottom="4dp"
+            android:insetLeft="4dp"
+            android:insetRight="4dp"
+            android:insetTop="4dp">
             <shape android:shape="rectangle">
-                <solid android:color="#1AFFFFFF" />
+                <solid android:color="#0CFFFFFF" />
                 <stroke
                     android:width="1dp"
-                    android:color="#24FFFFFF" />
-                <corners android:radius="20dp" />
+                    android:color="#22FFFFFF" />
+                <corners android:radius="22dp" />
             </shape>
         </inset>
     </item>

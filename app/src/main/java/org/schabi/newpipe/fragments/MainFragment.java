@@ -44,7 +44,6 @@ import org.schabi.newpipe.settings.tabs.Tab;
 import org.schabi.newpipe.settings.tabs.TabsManager;
 import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.ServiceHelper;
-import org.schabi.newpipe.util.ThemeHelper;
 import org.schabi.newpipe.views.ScrollableTabLayout;
 
 import java.util.ArrayList;
@@ -208,7 +207,30 @@ public class MainFragment extends BaseFragment implements TabLayout.OnTabSelecte
             final TabLayout.Tab tabToSet = binding.mainTabLayout.getTabAt(i);
             if (tabToSet != null) {
                 final Tab tab = tabsList.get(i);
-                tabToSet.setIcon(tab.getTabIconRes(requireContext()));
+                // Explicit centered bounds avoid Material's icon baseline/inset drift.
+                final android.widget.FrameLayout iconFrame = new android.widget.FrameLayout(
+                        requireContext());
+                final android.widget.ImageView icon =
+                        new android.widget.ImageView(requireContext());
+                icon.setImageResource(tab.getTabIconRes(requireContext()));
+                icon.setImageTintList(ColorStateList.valueOf(
+                        tabToSet.isSelected() ? Color.WHITE : 0xCCF2F2F5));
+                icon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+                final int iconSize = org.schabi.newpipe.util.DeviceUtils.dpToPx(
+                        22, requireContext());
+                iconFrame.addView(icon, new android.widget.FrameLayout.LayoutParams(
+                        iconSize, iconSize, android.view.Gravity.CENTER));
+                final int tabWidth = org.schabi.newpipe.util.DeviceUtils.dpToPx(64,
+                        requireContext());
+                final int tabHeight = org.schabi.newpipe.util.DeviceUtils.dpToPx(44,
+                        requireContext());
+                iconFrame.setLayoutParams(new android.view.ViewGroup.LayoutParams(
+                        tabWidth, tabHeight));
+                icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+                tabToSet.view.setGravity(android.view.Gravity.CENTER);
+                tabToSet.view.setPadding(0, 0, 0, 0);
+                tabToSet.setCustomView(iconFrame);
+                tabToSet.setIcon(null);
                 tabToSet.setContentDescription(tab.getTabName(requireContext()));
             }
         }
@@ -218,7 +240,8 @@ public class MainFragment extends BaseFragment implements TabLayout.OnTabSelecte
         if (activity != null && activity.getSupportActionBar() != null) {
             activity.getSupportActionBar().setTitle(
                     android.text.Html.fromHtml(
-                            "<b><font color='#FFFFFF'>NewPipe </font></b><font color='#FF2D55'><b>Frost</b></font>",
+                            "<b><font color='#FFFFFF'>NewPipe </font></b>"
+                                    + "<font color='#FF2D55'><b>Frost</b></font>",
                             android.text.Html.FROM_HTML_MODE_LEGACY));
             activity.getSupportActionBar().setSubtitle("Free. Private. Yours.");
         }
@@ -261,11 +284,25 @@ public class MainFragment extends BaseFragment implements TabLayout.OnTabSelecte
         if (DEBUG) {
             Log.d(TAG, "onTabSelected() called with: selectedTab = [" + selectedTab + "]");
         }
+        updateTabIconTint(selectedTab, true);
         updateTitleForTab(selectedTab.getPosition());
     }
 
     @Override
-    public void onTabUnselected(final TabLayout.Tab tab) { }
+    public void onTabUnselected(final TabLayout.Tab tab) {
+        updateTabIconTint(tab, false);
+    }
+
+    private void updateTabIconTint(final TabLayout.Tab tab, final boolean selected) {
+        final View custom = tab.getCustomView();
+        if (custom instanceof ViewGroup && ((ViewGroup) custom).getChildCount() > 0) {
+            final View child = ((ViewGroup) custom).getChildAt(0);
+            if (child instanceof android.widget.ImageView) {
+                ((android.widget.ImageView) child).setImageTintList(
+                        ColorStateList.valueOf(selected ? Color.WHITE : 0xCCF2F2F5));
+            }
+        }
+    }
 
     @Override
     public void onTabReselected(final TabLayout.Tab tab) {
