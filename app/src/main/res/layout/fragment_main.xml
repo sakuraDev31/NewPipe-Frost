@@ -2,6 +2,10 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#090A0F"
+    android:clipToPadding="false"
+    android:paddingTop="60dp"
+    android:paddingBottom="140dp"
     android:orientation="vertical">
 
     <!-- Sticky Frosted Glass Filter Strip -->

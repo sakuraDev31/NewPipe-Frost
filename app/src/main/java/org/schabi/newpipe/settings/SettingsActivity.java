@@ -85,6 +85,8 @@ public class SettingsActivity extends AppCompatActivity implements
     @State
     boolean wasSearchActive;
 
+    private SettingsLayoutBinding binding;
+
     @Override
     protected void onCreate(final Bundle savedInstanceBundle) {
         setTheme(ThemeHelper.getSettingsThemeStyle(this));
@@ -93,12 +95,17 @@ public class SettingsActivity extends AppCompatActivity implements
         Bridge.restoreInstanceState(this, savedInstanceBundle);
         final boolean restored = savedInstanceBundle != null;
 
-        final SettingsLayoutBinding settingsLayoutBinding =
-                SettingsLayoutBinding.inflate(getLayoutInflater());
-        setContentView(settingsLayoutBinding.getRoot());
-        initSearch(settingsLayoutBinding, restored);
+        binding = SettingsLayoutBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+        initSearch(binding, restored);
 
-        setSupportActionBar(settingsLayoutBinding.settingsToolbarLayout.toolbar);
+        setSupportActionBar(binding.settingsToolbarLayout.toolbar);
+        binding.settingsToolbarLayout.btnHeaderNavIcon.setImageResource(R.drawable.ic_arrow_back);
+        binding.settingsToolbarLayout.btnHeaderNav.setOnClickListener(v -> onBackPressed());
+        binding.settingsToolbarLayout.headerTitle.setText(R.string.settings);
+        binding.settingsToolbarLayout.btnOpenSettings.setVisibility(View.GONE);
+        binding.settingsToolbarLayout.btnSearchPill.setOnClickListener(v -> setSearchActive(true));
+        binding.settingsToolbarLayout.btnSearchBack.setOnClickListener(v -> setSearchActive(false));
 
         if (restored) {
             // Restore state
@@ -205,18 +212,31 @@ public class SettingsActivity extends AppCompatActivity implements
     ) {
         searchContainer =
                 settingsLayoutBinding.settingsToolbarLayout.toolbar
-                        .findViewById(R.id.toolbar_search_container);
+                        .findViewById(R.id.header_search_edit_group);
+        if (searchContainer == null) {
+            searchContainer =
+                    settingsLayoutBinding.settingsToolbarLayout.toolbar
+                            .findViewById(R.id.toolbar_search_container);
+        }
 
         // Configure input field for search
-        searchEditText = searchContainer.findViewById(R.id.toolbar_search_edit_text);
+        searchEditText = searchContainer.findViewById(R.id.search_edit_text);
+        if (searchEditText == null) {
+            searchEditText = searchContainer.findViewById(R.id.toolbar_search_edit_text);
+        }
         RxTextView.textChanges(searchEditText)
                 // Wait some time after the last input before actually searching
                 .debounce(200, TimeUnit.MILLISECONDS)
                 .subscribe(v -> runOnUiThread(this::onSearchChanged));
 
         // Configure clear button
-        searchContainer.findViewById(R.id.toolbar_search_clear)
-                .setOnClickListener(ev -> resetSearchText());
+        View clearBtn = searchContainer.findViewById(R.id.btn_search_clear);
+        if (clearBtn == null) {
+            clearBtn = searchContainer.findViewById(R.id.toolbar_search_clear);
+        }
+        if (clearBtn != null) {
+            clearBtn.setOnClickListener(ev -> resetSearchText());
+        }
 
         ensureSearchRepresentsApplicationState();
 
@@ -298,7 +318,12 @@ public class SettingsActivity extends AppCompatActivity implements
 
         wasSearchActive = active;
 
-        searchContainer.setVisibility(active ? View.VISIBLE : View.GONE);
+        if (binding != null) {
+            binding.settingsToolbarLayout.headerNormalGroup.setVisibility(active ? View.GONE : View.VISIBLE);
+            binding.settingsToolbarLayout.headerSearchEditGroup.setVisibility(active ? View.VISIBLE : View.GONE);
+        } else {
+            searchContainer.setVisibility(active ? View.VISIBLE : View.GONE);
+        }
         if (menuSearchItem != null) {
             menuSearchItem.setVisible(!active);
         }

@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<org.schabi.newpipe.views.glass.RealTimeLiquidGlassView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/top_glass_header"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:elevation="12dp"
+    app:glassBlurRadius="28dp"
+    app:glassCornerRadius="0dp"
+    app:glassStrokeWidth="1dp"
+    app:glassTint="#6610121A">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@android:color/transparent"
+        android:gravity="center_vertical"
+        android:minHeight="?attr/actionBarSize"
+        android:theme="@style/ToolbarTheme"
+        app:contentInsetEnd="12dp"
+        app:contentInsetStart="12dp">
+
+        <!-- Normal Mode Group -->
+        <LinearLayout
+            android:id="@+id/header_normal_group"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="visible">
+
+            <!-- 1. Single Adaptive Left Navigation Button (Hamburger / Back) -->
+            <FrameLayout
+                android:id="@+id/btn_header_nav"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_glass_icon_btn"
+                android:clickable="true"
+                android:contentDescription="@string/drawer_open"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/btn_header_nav_icon"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@null"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_menu"
+                    app:tint="#F5F5F7" />
+            </FrameLayout>
+
+            <!-- Center-Left: Logo + Non-overlapping Title -->
+            <ImageView
+                android:id="@+id/header_logo"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="10dp"
+                android:contentDescription="@string/app_name"
+                android:src="@drawable/ic_tv"
+                app:tint="#FF3B5C" />
+
+            <TextView
+                android:id="@+id/header_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="NewPipe Frost"
+                android:textColor="#F5F5F7"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <!-- Frosted Search Pill (One Pill, No Duplicate Buttons) -->
+            <LinearLayout
+                android:id="@+id/btn_search_pill"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_glass_search_pill"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="14dp">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:contentDescription="@string/search"
+                    android:src="@drawable/ic_search"
+                    app:tint="#F5F5F7" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="@string/search"
+                    android:textColor="#A1A1AA"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- Frosted Settings Gear Button -->
+            <FrameLayout
+                android:id="@+id/btn_open_settings"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/bg_glass_icon_btn"
+                android:clickable="true"
+                android:contentDescription="@string/settings"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/settings"
+                    android:src="@drawable/ic_settings"
+                    app:tint="#F5F5F7" />
+            </FrameLayout>
+
+        </LinearLayout>
+
+        <!-- Search Edit Mode Group (Initially GONE) -->
+        <LinearLayout
+            android:id="@+id/header_search_edit_group"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <!-- Back button to exit search mode -->
+            <FrameLayout
+                android:id="@+id/btn_search_back"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_glass_icon_btn"
+                android:clickable="true"
+                android:contentDescription="@string/back"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@null"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_arrow_back"
+                    app:tint="#F5F5F7" />
+            </FrameLayout>
+
+            <!-- Real, focusable EditText inside frosted pill -->
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_glass_search_pill">
+
+                <EditText
+                    android:id="@+id/search_edit_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center_vertical"
+                    android:background="@null"
+                    android:hint="@string/search"
+                    android:hintTextColor="#80FFFFFF"
+                    android:imeOptions="actionSearch|flagNoFullscreen"
+                    android:importantForAutofill="no"
+                    android:inputType="text|textNoSuggestions"
+                    android:maxLines="1"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="36dp"
+                    android:textColor="#F5F5F7"
+                    android:textSize="15sp" />
+
+                <!-- Clear button inside the edit pill -->
+                <FrameLayout
+                    android:id="@+id/btn_search_clear"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_gravity="end|center_vertical"
+                    android:layout_marginEnd="2dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="@string/clear"
+                    android:focusable="true"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@string/clear"
+                        android:src="@drawable/ic_close"
+                        app:tint="#A1A1AA" />
+                </FrameLayout>
+            </FrameLayout>
+
+        </LinearLayout>
+
+    </androidx.appcompat.widget.Toolbar>
+
+</org.schabi.newpipe.views.glass.RealTimeLiquidGlassView>

@@ -232,10 +232,13 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         updateService();
         // Add the service name to search string hint
         // to make it more obvious which platform is being searched.
-        if (service != null) {
+        if (service != null && searchEditText != null) {
             searchEditText.setHint(
                     getString(R.string.search_with_service_name,
                             service.getServiceInfo().getName()));
+        }
+        if (activity instanceof org.schabi.newpipe.MainActivity) {
+            ((org.schabi.newpipe.MainActivity) activity).enterSearchMode(searchString != null ? searchString : "");
         }
         showSearchOnStart();
         initSearchListeners();
@@ -324,6 +327,10 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         }
         unsetSearchListeners();
 
+        if (activity instanceof org.schabi.newpipe.MainActivity) {
+            ((org.schabi.newpipe.MainActivity) activity).exitSearchMode(false);
+        }
+
         searchBinding = null;
         super.onDestroyView();
     }
@@ -385,9 +392,20 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
             }
         }).attachToRecyclerView(searchBinding.suggestionsList);
 
-        searchToolbarContainer = activity.findViewById(R.id.toolbar_search_container);
-        searchEditText = searchToolbarContainer.findViewById(R.id.toolbar_search_edit_text);
-        searchClear = searchToolbarContainer.findViewById(R.id.toolbar_search_clear);
+        searchToolbarContainer = activity.findViewById(R.id.header_search_edit_group);
+        if (searchToolbarContainer == null) {
+            searchToolbarContainer = activity.findViewById(R.id.toolbar_search_container);
+        }
+        if (searchToolbarContainer != null) {
+            searchEditText = searchToolbarContainer.findViewById(R.id.search_edit_text);
+            if (searchEditText == null) {
+                searchEditText = searchToolbarContainer.findViewById(R.id.toolbar_search_edit_text);
+            }
+            searchClear = searchToolbarContainer.findViewById(R.id.btn_search_clear);
+            if (searchClear == null) {
+                searchClear = searchToolbarContainer.findViewById(R.id.toolbar_search_clear);
+            }
+        }
     }
 
     /*//////////////////////////////////////////////////////////////////////////

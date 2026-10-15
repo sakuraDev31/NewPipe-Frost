@@ -107,9 +107,16 @@ import org.schabi.newpipe.util.ThemeHelper;
 import org.schabi.newpipe.util.external_communication.ShareUtils;
 import org.schabi.newpipe.views.FocusOverlayView;
 import org.schabi.newpipe.views.glass.LiquidGlassHelper;
+import org.schabi.newpipe.views.glass.AdaptiveGlassNavController;
 import org.schabi.newpipe.views.glass.PlayerSheetController;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
+
+import android.content.res.Configuration;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -124,6 +131,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding mainBinding;
     private ToolbarLayoutBinding toolbarLayoutBinding;
+    private AdaptiveGlassNavController adaptiveNavController;
     private PlayerSheetController playerSheetController;
 
     private BroadcastReceiver broadcastReceiver;
@@ -213,18 +221,7 @@ public class MainActivity extends AppCompatActivity {
                 toolbarLayoutBinding.getRoot(), (view, insets) -> {
                     final int top = insets.getInsets(
                             androidx.core.view.WindowInsetsCompat.Type.systemBars()).top;
-                    final int actionBarHeight = toolbarLayoutBinding.toolbar.getMinimumHeight();
                     view.setPadding(0, top, 0, 0);
-                    final View backdrop = toolbarLayoutBinding.headerBackdrop;
-                    final ViewGroup.LayoutParams backdropParams = backdrop.getLayoutParams();
-                    backdropParams.height = actionBarHeight + top;
-                    backdrop.setLayoutParams(backdropParams);
-                    backdrop.setTranslationY(-top);
-                    final ViewGroup.MarginLayoutParams holderParams =
-                            (ViewGroup.MarginLayoutParams) mainBinding.fragmentHolder
-                                    .getLayoutParams();
-                    holderParams.topMargin = actionBarHeight + top;
-                    mainBinding.fragmentHolder.setLayoutParams(holderParams);
                     return insets;
                 });
         androidx.core.view.ViewCompat.requestApplyInsets(mainBinding.getRoot());
@@ -263,168 +260,199 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Wires up the grounded YouTube Liquid Glass bottom dock bar with SpringAnimation indicator.
+     * Wires up adaptive navigation: Portrait Grounded Dock + Landscape Floating Duo Pill.
      */
     private void setupGroundedDock() {
-        final BottomNavigationView dock = mainBinding.groundedGlassDock;
-        final FrameLayout dockContainer = mainBinding.groundedDockContainer;
-
-        LiquidGlassHelper.applyLiquidGlass(
-                mainBinding.groundedDockBlur,
-                mainBinding.blurTarget,
-                LiquidGlassHelper.DEFAULT_BLUR_RADIUS_API31,
-                LiquidGlassHelper.DEFAULT_SATURATION,
-                LiquidGlassHelper.DEFAULT_OVERLAY_TINT
+        adaptiveNavController = new AdaptiveGlassNavController(
+                this,
+                mainBinding.groundedDockContainer,
+                mainBinding.groundedGlassDock,
+                mainBinding.dockActiveIndicator,
+                mainBinding.floatingVerticalDuoPill,
+                mainBinding.duoActiveIndicator,
+                mainBinding.duoTabHome,
+                mainBinding.duoTabSubs,
+                mainBinding.duoTabDownloads,
+                mainBinding.duoTabLibrary,
+                mainBinding.duoIconHome,
+                mainBinding.duoIconSubs,
+                mainBinding.duoIconDownloads,
+                mainBinding.duoIconLibrary,
+                mainBinding.duoTextHome,
+                mainBinding.duoTextSubs,
+                mainBinding.duoTextDownloads,
+                mainBinding.duoTextLibrary
         );
 
         playerSheetController = new PlayerSheetController(
                 this,
                 mainBinding.fragmentPlayerHolder,
-                dockContainer
+                mainBinding.groundedDockContainer
         );
 
-        dock.setOnItemSelectedListener(item -> {
-            final int itemId = item.getItemId();
-            animateDockIndicator(itemId);
-
-            if (itemId == R.id.nav_home) {
-                switchTabFragment(new MainFragment());
-                return true;
-            } else if (itemId == R.id.nav_subscriptions) {
-                switchTabFragment(new SubscriptionFragment());
-                return true;
-            } else if (itemId == R.id.nav_downloads) {
-                switchTabFragment(new GlassDownloadFragment());
-                return true;
-            } else if (itemId == R.id.nav_library) {
-                switchTabFragment(new LibraryHubFragment());
-                return true;
-            }
-            return false;
-        });
-
-        ViewCompat.setOnApplyWindowInsetsListener(dockContainer, (v, insets) -> {
+        ViewCompat.setOnApplyWindowInsetsListener(mainBinding.groundedDockContainer, (v, insets) -> {
             final int bottom = insets.getInsets(
                     WindowInsetsCompat.Type.systemBars()).bottom;
             v.setPadding(0, 0, 0, bottom);
-            dock.post(() -> {
+            mainBinding.groundedGlassDock.post(() -> {
                 if (playerSheetController != null) {
                     playerSheetController.updatePeekHeight();
                 }
-                updateDockSelection();
             });
             return insets;
         });
 
-        getSupportFragmentManager().addOnBackStackChangedListener(this::updateDockSelection);
-        dock.post(this::updateDockSelection);
-    }
-
-    /**
-     * Animates the sliding glass indicator view behind the active tab icon/label
-     * using SpringAnimation (STIFFNESS_LOW, DAMPING_RATIO_LOW_BOUNCY).
-     */
-    private void animateDockIndicator(final int itemId) {
-        final BottomNavigationView dock = mainBinding.groundedGlassDock;
-        final View indicator = mainBinding.dockActiveIndicator;
-        dock.post(() -> {
-            final View itemView = dock.findViewById(itemId);
-            if (itemView == null) {
-                return;
+        getSupportFragmentManager().addOnBackStackChangedListener(() -> {
+            updateHeaderNavigationIcon();
+            if (adaptiveNavController != null) {
+                adaptiveNavController.syncWithActiveFragment();
             }
-            final float targetX = itemView.getX() + (itemView.getWidth() - indicator.getWidth()) / 2f;
-            if (indicator.getVisibility() != View.VISIBLE) {
-                indicator.setX(targetX);
-                indicator.setVisibility(View.VISIBLE);
-                return;
-            }
-            final SpringAnimation spring = new SpringAnimation(
-                    indicator,
-                    DynamicAnimation.TRANSLATION_X);
-            final SpringForce force = new SpringForce(targetX);
-            force.setStiffness(SpringForce.STIFFNESS_LOW);
-            force.setDampingRatio(SpringForce.DAMPING_RATIO_LOW_BOUNCY);
-            spring.setSpring(force);
-            spring.start();
         });
     }
 
     /**
-     * Smoothly switches between bottom dock tabs using MaterialSharedAxis(MaterialSharedAxis.Y, true) (280ms).
-     */
-    private void switchTabFragment(final Fragment fragment) {
-        final Fragment current = getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
-        if (current != null && current.getClass().equals(fragment.getClass())) {
-            return;
-        }
-
-        final MaterialSharedAxis enterTransition = new MaterialSharedAxis(MaterialSharedAxis.Y, true);
-        enterTransition.setDuration(280L);
-        final MaterialSharedAxis exitTransition = new MaterialSharedAxis(MaterialSharedAxis.Y, false);
-        exitTransition.setDuration(280L);
-
-        fragment.setEnterTransition(enterTransition);
-        fragment.setExitTransition(exitTransition);
-
-        getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fragment_holder, fragment)
-                .commit();
-    }
-
-    /**
-     * Synchronizes grounded dock selection and sliding indicator with the active fragment.
-     */
-    private void updateDockSelection() {
-        final Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
-        final BottomNavigationView dock = mainBinding.groundedGlassDock;
-        int targetId = R.id.nav_home;
-
-        if (fragment instanceof MainFragment) {
-            targetId = R.id.nav_home;
-        } else if (fragment instanceof SubscriptionFragment || fragment instanceof FeedFragment) {
-            targetId = R.id.nav_subscriptions;
-        } else if (fragment instanceof GlassDownloadFragment) {
-            targetId = R.id.nav_downloads;
-        } else if (fragment instanceof LibraryHubFragment
-                || fragment instanceof BookmarkFragment
-                || fragment instanceof LocalPlaylistFragment
-                || fragment instanceof StatisticsPlaylistFragment) {
-            targetId = R.id.nav_library;
-        }
-
-        if (dock.getSelectedItemId() != targetId) {
-            dock.getMenu().findItem(targetId).setChecked(true);
-        }
-        animateDockIndicator(targetId);
-    }
-
-    /**
-     * Sets up WhatsApp iOS style header actions: frosted search pill and settings button.
+     * Sets up non-colliding header actions: Adaptive nav button, Search pill, Settings gear,
+     * and Search Edit Mode with real focusable EditText.
      */
     private void setupHeaderActions() {
-        LiquidGlassHelper.applyLiquidGlass(
-                toolbarLayoutBinding.headerBackdrop,
-                mainBinding.blurTarget,
-                LiquidGlassHelper.DEFAULT_BLUR_RADIUS_API31,
-                LiquidGlassHelper.DEFAULT_SATURATION,
-                LiquidGlassHelper.DEFAULT_OVERLAY_TINT
-        );
-
-        toolbarLayoutBinding.headerSearchPill.setOnClickListener(v -> {
-            try {
-                NavigationHelper.openSearchFragment(
-                        getSupportFragmentManager(),
-                        ServiceHelper.getSelectedServiceId(this),
-                        ""
-                );
-            } catch (final Exception e) {
-                ErrorUtil.showUiErrorSnackbar(this, "Opening search", e);
+        // 1. Single Adaptive Left Navigation Button (Hamburger / Back)
+        toolbarLayoutBinding.btnHeaderNav.setOnClickListener(v -> {
+            final Fragment currentFragment = getSupportFragmentManager()
+                    .findFragmentById(R.id.fragment_holder);
+            if (isRootTabFragment(currentFragment)) {
+                if (mainBinding.drawerLayout.isDrawerOpen(androidx.core.view.GravityCompat.START)) {
+                    mainBinding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START);
+                } else {
+                    mainBinding.drawerLayout.openDrawer(androidx.core.view.GravityCompat.START);
+                }
+            } else {
+                getOnBackPressedDispatcher().onBackPressed();
             }
         });
 
-        toolbarLayoutBinding.headerSettingsBtn.setOnClickListener(v -> {
+        // 2. Search Pill (Normal Mode) -> opens search edit mode
+        toolbarLayoutBinding.btnSearchPill.setOnClickListener(v -> enterSearchMode(""));
+
+        // 3. Settings Gear Button
+        toolbarLayoutBinding.btnOpenSettings.setOnClickListener(v -> {
             NavigationHelper.openSettings(this);
         });
+
+        // 4. Search Edit Mode Exit (Back button)
+        toolbarLayoutBinding.btnSearchBack.setOnClickListener(v -> exitSearchMode(true));
+
+        // 5. Search Clear Button
+        toolbarLayoutBinding.btnSearchClear.setOnClickListener(v -> {
+            toolbarLayoutBinding.searchEditText.setText("");
+        });
+
+        // 6. TextWatcher & IME Action on Search EditText
+        toolbarLayoutBinding.searchEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(final CharSequence s, final int start, final int count, final int after) {}
+
+            @Override
+            public void onTextChanged(final CharSequence s, final int start, final int before, final int count) {
+                final boolean hasText = s != null && s.length() > 0;
+                toolbarLayoutBinding.btnSearchClear.setVisibility(hasText ? View.VISIBLE : View.GONE);
+            }
+
+            @Override
+            public void afterTextChanged(final Editable s) {}
+        });
+
+        toolbarLayoutBinding.searchEditText.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                final String query = toolbarLayoutBinding.searchEditText.getText().toString().trim();
+                if (!TextUtils.isEmpty(query)) {
+                    hideKeyboard();
+                    NavigationHelper.openSearchFragment(
+                            getSupportFragmentManager(),
+                            ServiceHelper.getSelectedServiceId(this),
+                            query
+                    );
+                }
+                return true;
+            }
+            return false;
+        });
+    }
+
+    public void enterSearchMode(final String initialQuery) {
+        toolbarLayoutBinding.headerNormalGroup.setVisibility(View.GONE);
+        toolbarLayoutBinding.headerSearchEditGroup.setVisibility(View.VISIBLE);
+        if (initialQuery != null && !initialQuery.equals(toolbarLayoutBinding.searchEditText.getText().toString())) {
+            toolbarLayoutBinding.searchEditText.setText(initialQuery);
+        }
+        toolbarLayoutBinding.searchEditText.requestFocus();
+        showKeyboard(toolbarLayoutBinding.searchEditText);
+    }
+
+    public void exitSearchMode(final boolean popFragment) {
+        toolbarLayoutBinding.headerSearchEditGroup.setVisibility(View.GONE);
+        toolbarLayoutBinding.headerNormalGroup.setVisibility(View.VISIBLE);
+        toolbarLayoutBinding.searchEditText.clearFocus();
+        hideKeyboard();
+
+        if (popFragment) {
+            final Fragment current = getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
+            if (current instanceof SearchFragment) {
+                getOnBackPressedDispatcher().onBackPressed();
+            }
+        }
+    }
+
+    private boolean isRootTabFragment(final Fragment fragment) {
+        return fragment instanceof MainFragment
+                || fragment instanceof SubscriptionFragment
+                || fragment instanceof GlassDownloadFragment
+                || fragment instanceof LibraryHubFragment;
+    }
+
+    private void updateHeaderNavigationIcon() {
+        final Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
+        final boolean isRoot = isRootTabFragment(fragment);
+
+        if (isRoot) {
+            toolbarLayoutBinding.btnHeaderNavIcon.setImageResource(R.drawable.ic_menu);
+            toolbarLayoutBinding.btnHeaderNav.setContentDescription(getString(R.string.drawer_open));
+        } else {
+            toolbarLayoutBinding.btnHeaderNavIcon.setImageResource(R.drawable.ic_arrow_back);
+            toolbarLayoutBinding.btnHeaderNav.setContentDescription(getString(R.string.back));
+        }
+
+        if (!(fragment instanceof SearchFragment)
+                && toolbarLayoutBinding.headerSearchEditGroup.getVisibility() == View.VISIBLE) {
+            exitSearchMode(false);
+        }
+    }
+
+    private void showKeyboard(final View view) {
+        if (view == null) return;
+        view.post(() -> {
+            final InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT);
+            }
+        });
+    }
+
+    private void hideKeyboard() {
+        final View currentFocus = getCurrentFocus();
+        if (currentFocus != null) {
+            final InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(currentFocus.getWindowToken(), 0);
+            }
+        }
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull final Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (adaptiveNavController != null) {
+            adaptiveNavController.onConfigurationChanged(newConfig);
+        }
     }
 
     @Override
@@ -627,7 +655,8 @@ public class MainActivity extends AppCompatActivity {
         final Fragment fragment =
                 getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
         if (!(fragment instanceof SearchFragment)) {
-            toolbarLayoutBinding.toolbarSearchContainer.getRoot().setVisibility(View.GONE);
+            toolbarLayoutBinding.headerSearchEditGroup.setVisibility(View.GONE);
+            toolbarLayoutBinding.headerNormalGroup.setVisibility(View.VISIBLE);
         }
 
         final ActionBar actionBar = getSupportActionBar();
@@ -635,7 +664,7 @@ public class MainActivity extends AppCompatActivity {
             actionBar.setDisplayHomeAsUpEnabled(false);
         }
 
-        updateDrawerNavigation();
+        updateHeaderNavigationIcon();
 
         return true;
     }
@@ -681,18 +710,7 @@ public class MainActivity extends AppCompatActivity {
     //////////////////////////////////////////////////////////////////////////*/
 
     private void updateDrawerNavigation() {
-        if (getSupportActionBar() == null) {
-            return;
-        }
-
-        final Fragment fragment = getSupportFragmentManager()
-                .findFragmentById(R.id.fragment_holder);
-        if (fragment instanceof MainFragment) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(false);
-        } else {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            toolbarLayoutBinding.toolbar.setNavigationOnClickListener(v -> onHomeButtonPressed());
-        }
+        updateHeaderNavigationIcon();
     }
 
     private void handleIntent(final Intent intent) {

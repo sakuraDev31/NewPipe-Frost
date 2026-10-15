@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="RealTimeLiquidGlassView">
+        <attr name="glassCornerRadius" format="dimension" />
+        <attr name="glassTint" format="color" />
+        <attr name="glassBlurRadius" format="dimension|float" />
+        <attr name="glassStrokeWidth" format="dimension" />
+        <attr name="glassStrokeColor" format="color" />
+    </declare-styleable>
+</resources>
