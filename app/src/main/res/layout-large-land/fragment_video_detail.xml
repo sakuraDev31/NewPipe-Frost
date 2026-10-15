@@ -646,7 +646,7 @@
         android:layout_marginTop="8dp"
         android:visibility="gone">
 
-        <ImageButton
+        <ImageView
             android:id="@+id/overlay_thumbnail"
             android:layout_width="match_parent"
             android:layout_height="match_parent"

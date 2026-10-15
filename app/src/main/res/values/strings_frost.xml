@@ -20,4 +20,8 @@
     <string name="tab_home" translatable="false">Home</string>
     <string name="tab_downloads" translatable="false">Downloads</string>
     <string name="tab_library" translatable="false">Library</string>
+    <string name="tab_playlists" translatable="false">Playlists</string>
+    <string name="expand_video">Expand video: %1$s</string>
+    <string name="watched" translatable="false">watched</string>
+    <string name="deleted" translatable="false">Item deleted</string>
 </resources>
