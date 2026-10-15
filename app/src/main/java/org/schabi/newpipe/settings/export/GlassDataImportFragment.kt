@@ -84,7 +84,7 @@ class GlassDataImportFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        LiquidGlassHelper.applyLiquidGlass(binding.syncProgressCard, 18f)
+        LiquidGlassHelper.applyLiquidGlass(binding.syncProgressCard)
 
         binding.btnImportTakeout.setOnClickListener {
             selectTakeoutLauncher.launch(arrayOf("application/json", "text/html", "*/*"))

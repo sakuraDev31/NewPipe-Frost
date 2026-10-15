@@ -51,7 +51,7 @@ class MainFragment : BaseFragment() {
         tabsManager = TabsManager.getManager(activity)
         tabsManager?.setSavedTabsListener {
             if (DEBUG) {
-                Log.d(TAG, "TabsManager.SavedTabsChangeListener: onTabsChanged, isResumed = $isResumed")
+                Log.d(MAIN_TAG, "TabsManager.SavedTabsChangeListener: onTabsChanged, isResumed = $isResumed")
             }
             if (isResumed) {
                 setupTabs()
@@ -229,7 +229,7 @@ class MainFragment : BaseFragment() {
     }
 
     companion object {
-        private const val TAG = "MainFragment"
+        private const val MAIN_TAG = "MainFragment"
         private val DEBUG = org.schabi.newpipe.MainActivity.DEBUG
     }
 }

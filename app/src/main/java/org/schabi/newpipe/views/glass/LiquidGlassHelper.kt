@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import androidx.annotation.ColorInt
 import androidx.annotation.RequiresApi
+import eightbitlab.com.blurview.BlurTarget
 import eightbitlab.com.blurview.BlurView
 
 /**
@@ -33,7 +34,7 @@ object LiquidGlassHelper {
      * Applies the Liquid Glass blur and color vibrancy boost effect to a view.
      *
      * @param view The view to apply the liquid glass effect to (or BlurView container)
-     * @param backdropRoot The root ViewGroup being blurred behind this view (required for BlurView on API < 31)
+     * @param blurTarget The root BlurTarget being blurred behind this view (required for BlurView on API < 31)
      * @param blurRadius The blur radius to apply
      * @param saturation Saturation boost multiplier (1.45f = +45% color saturation)
      * @param overlayTint Overlay color tint used on fallback rendering
@@ -42,15 +43,15 @@ object LiquidGlassHelper {
     @JvmOverloads
     fun applyLiquidGlass(
         view: View,
-        backdropRoot: ViewGroup? = null,
+        blurTarget: BlurTarget? = null,
         blurRadius: Float = DEFAULT_BLUR_RADIUS_API31,
         saturation: Float = DEFAULT_SATURATION,
         @ColorInt overlayTint: Int = DEFAULT_OVERLAY_TINT
     ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             applyApi31ChainedEffect(view, blurRadius, saturation)
-        } else if (view is BlurView && backdropRoot != null) {
-            setupBlurView(view, backdropRoot, DEFAULT_BLUR_RADIUS_LEGACY, overlayTint)
+        } else if (view is BlurView && blurTarget != null) {
+            setupBlurView(view, blurTarget, DEFAULT_BLUR_RADIUS_LEGACY, overlayTint)
         } else {
             // Low-level fallback: translucent tint with fallback background
             view.setBackgroundColor(overlayTint)
@@ -95,12 +96,12 @@ object LiquidGlassHelper {
     @JvmOverloads
     fun setupBlurView(
         blurView: BlurView,
-        backdropRoot: ViewGroup,
+        blurTarget: BlurTarget,
         blurRadius: Float = DEFAULT_BLUR_RADIUS_LEGACY,
         @ColorInt overlayTint: Int = DEFAULT_OVERLAY_TINT
     ) {
         try {
-            blurView.setupWith(backdropRoot)
+            blurView.setupWith(blurTarget)
                 .setBlurRadius(blurRadius)
                 .setOverlayColor(overlayTint)
         } catch (ignored: Throwable) {

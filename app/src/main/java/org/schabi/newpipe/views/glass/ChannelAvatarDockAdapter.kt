@@ -55,8 +55,7 @@ class ChannelAvatarDockAdapter(
             )
 
             if (!item.avatarUrl.isNullOrEmpty()) {
-                val images = listOf(Image(item.avatarUrl, Image.HeightAndWidth.UNKNOWN, Image.HeightAndWidth.UNKNOWN, Image.ResolutionLevel.HIGH))
-                CoilHelper.loadAvatar(avatarImage, images)
+                CoilHelper.loadAvatar(avatarImage, item.avatarUrl)
             } else {
                 avatarImage.setImageResource(R.drawable.placeholder_person)
             }

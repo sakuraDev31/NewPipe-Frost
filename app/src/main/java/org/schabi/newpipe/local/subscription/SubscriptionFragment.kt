@@ -52,9 +52,9 @@ import org.schabi.newpipe.util.ServiceHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import org.schabi.newpipe.views.glass.ChannelAvatarDockAdapter
 import org.schabi.newpipe.views.glass.ChannelAvatarItem
-import org.schabi.newpipe.views.glass.GlassFilterAdapter
 import org.schabi.newpipe.util.ThemeHelper.getGridSpanCountChannels
 import org.schabi.newpipe.util.external_communication.ShareUtils
+import org.schabi.newpipe.util.image.ImageStrategy
 
 class SubscriptionFragment : BaseStateFragment<SubscriptionState>() {
     private var _binding: FragmentSubscriptionBinding? = null
@@ -406,12 +406,12 @@ class SubscriptionFragment : BaseStateFragment<SubscriptionState>() {
                 subscriptionsSection.setHideWhenEmpty(false)
 
                 val avatarItems = result.subscriptions.filterIsInstance<ChannelItem>().map { channelItem ->
-                    val info = channelItem.channel
+                    val info = channelItem.infoItem
                     ChannelAvatarItem(
                         serviceId = info.serviceId,
                         url = info.url,
                         name = info.name,
-                        avatarUrl = info.thumbnails.firstOrNull()?.url,
+                        avatarUrl = ImageStrategy.choosePreferredImage(info.thumbnails),
                         hasUnread = false
                     )
                 }
