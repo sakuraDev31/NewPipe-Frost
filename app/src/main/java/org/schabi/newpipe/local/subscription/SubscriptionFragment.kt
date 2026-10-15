@@ -52,6 +52,7 @@ import org.schabi.newpipe.util.ServiceHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import org.schabi.newpipe.views.glass.ChannelAvatarDockAdapter
 import org.schabi.newpipe.views.glass.ChannelAvatarItem
+import org.schabi.newpipe.views.glass.GlassFilterAdapter
 import org.schabi.newpipe.util.ThemeHelper.getGridSpanCountChannels
 import org.schabi.newpipe.util.external_communication.ShareUtils
 import org.schabi.newpipe.util.image.ImageStrategy
