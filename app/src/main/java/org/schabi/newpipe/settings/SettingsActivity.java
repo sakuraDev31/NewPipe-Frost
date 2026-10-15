@@ -219,23 +219,27 @@ public class SettingsActivity extends AppCompatActivity implements
                             .findViewById(R.id.toolbar_search_container);
         }
 
-        // Configure input field for search
-        searchEditText = searchContainer.findViewById(R.id.search_edit_text);
-        if (searchEditText == null) {
-            searchEditText = searchContainer.findViewById(R.id.toolbar_search_edit_text);
-        }
-        RxTextView.textChanges(searchEditText)
-                // Wait some time after the last input before actually searching
-                .debounce(200, TimeUnit.MILLISECONDS)
-                .subscribe(v -> runOnUiThread(this::onSearchChanged));
+        if (searchContainer != null) {
+            // Configure input field for search
+            searchEditText = searchContainer.findViewById(R.id.search_edit_text);
+            if (searchEditText == null) {
+                searchEditText = searchContainer.findViewById(R.id.toolbar_search_edit_text);
+            }
+            if (searchEditText != null) {
+                RxTextView.textChanges(searchEditText)
+                        // Wait some time after the last input before actually searching
+                        .debounce(200, TimeUnit.MILLISECONDS)
+                        .subscribe(v -> runOnUiThread(this::onSearchChanged));
+            }
 
-        // Configure clear button
-        View clearBtn = searchContainer.findViewById(R.id.btn_search_clear);
-        if (clearBtn == null) {
-            clearBtn = searchContainer.findViewById(R.id.toolbar_search_clear);
-        }
-        if (clearBtn != null) {
-            clearBtn.setOnClickListener(ev -> resetSearchText());
+            // Configure clear button
+            View clearBtn = searchContainer.findViewById(R.id.btn_search_clear);
+            if (clearBtn == null) {
+                clearBtn = searchContainer.findViewById(R.id.toolbar_search_clear);
+            }
+            if (clearBtn != null) {
+                clearBtn.setOnClickListener(ev -> resetSearchText());
+            }
         }
 
         ensureSearchRepresentsApplicationState();

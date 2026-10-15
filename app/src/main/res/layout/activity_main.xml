@@ -16,12 +16,19 @@
         android:clipToPadding="false">
 
         <!-- Full-Bleed Content Underlay: renders directly behind Top Header and Bottom Dock -->
-        <androidx.fragment.app.FragmentContainerView
-            android:id="@+id/fragment_holder"
+        <eightbitlab.com.blurview.BlurTarget
+            android:id="@+id/blur_target"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginTop="0dp"
-            android:layout_marginBottom="0dp" />
+            android:layout_height="match_parent">
+
+            <androidx.fragment.app.FragmentContainerView
+                android:id="@+id/fragment_holder"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginTop="0dp"
+                android:layout_marginBottom="0dp" />
+
+        </eightbitlab.com.blurview.BlurTarget>
 
         <!-- WhatsApp iOS style sticky frosted blurred top header -->
         <include
