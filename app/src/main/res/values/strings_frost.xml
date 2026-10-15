@@ -24,4 +24,5 @@
     <string name="expand_video">Expand video: %1$s</string>
     <string name="watched" translatable="false">watched</string>
     <string name="deleted" translatable="false">Item deleted</string>
+    <string name="back" translatable="false">Back</string>
 </resources>

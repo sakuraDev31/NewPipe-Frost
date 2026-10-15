@@ -173,7 +173,7 @@
                     android:layout_gravity="center_vertical"
                     android:background="@null"
                     android:hint="@string/search"
-                    android:hintTextColor="#80FFFFFF"
+                    android:textColorHint="#80FFFFFF"
                     android:imeOptions="actionSearch|flagNoFullscreen"
                     android:importantForAutofill="no"
                     android:inputType="text|textNoSuggestions"
