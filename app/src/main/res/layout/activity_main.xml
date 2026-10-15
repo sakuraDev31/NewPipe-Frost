@@ -1,55 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
-<org.schabi.newpipe.views.FocusAwareDrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<org.schabi.newpipe.views.FocusAwareCoordinator xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/coordinator"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:clipToPadding="false"
-    android:clipChildren="false">
+    android:background="@drawable/frost_window_bg"
+    android:clipChildren="false"
+    android:clipToPadding="false">
 
-    <org.schabi.newpipe.views.FocusAwareCoordinator
+    <!-- BlurTarget provides the backdrop bitmap for Liquid Glass blur underlays -->
+    <eightbitlab.com.blurview.BlurTarget
+        android:id="@+id/blur_target"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/frost_window_bg"
-        android:clipToPadding="false"
-        android:clipChildren="false">
-
-        <!-- Everything inside is what the glass rail blurs behind itself -->
-        <eightbitlab.com.blurview.BlurTarget
-            android:id="@+id/blur_target"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
-
-            <androidx.fragment.app.FragmentContainerView
-                android:id="@+id/fragment_holder"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_marginTop="?attr/actionBarSize" />
-
-        </eightbitlab.com.blurview.BlurTarget>
-
-        <include
-            layout="@layout/toolbar_layout"
-            android:id="@+id/toolbar_layout"/>
-
-        <!-- Vertical frosted-glass navigation rail on the right edge -->
-        <include
-            layout="@layout/glass_nav_rail"
-            android:id="@+id/glass_rail" />
+        android:layout_height="match_parent">
 
         <androidx.fragment.app.FragmentContainerView
-            android:id="@+id/fragment_player_holder"
+            android:id="@+id/fragment_holder"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_gravity="center_horizontal"
-            android:elevation="14dp"
-            app:behavior_hideable="true"
-            app:behavior_peekHeight="0dp"
-            app:layout_behavior="org.schabi.newpipe.player.gesture.CustomBottomSheetBehavior" />
+            android:layout_marginTop="?attr/actionBarSize" />
 
-    </org.schabi.newpipe.views.FocusAwareCoordinator>
+    </eightbitlab.com.blurview.BlurTarget>
 
+    <!-- WhatsApp iOS style sticky frosted blurred top header -->
     <include
-        layout="@layout/drawer_layout"
-        android:id="@+id/drawer_layout" />
+        android:id="@+id/toolbar_layout"
+        layout="@layout/toolbar_layout" />
 
-</org.schabi.newpipe.views.FocusAwareDrawerLayout>
+    <!-- Connected Video Player Bottom Sheet -->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/fragment_player_holder"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="bottom|center_horizontal"
+        android:elevation="14dp"
+        app:behavior_hideable="true"
+        app:behavior_peekHeight="0dp"
+        app:layout_behavior="org.schabi.newpipe.player.gesture.CustomBottomSheetBehavior" />
+
+    <!-- Grounded YouTube Liquid Glass Bottom Dock Bar -->
+    <FrameLayout
+        android:id="@+id/grounded_dock_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bg_liquid_glass_bottom_dock"
+        android:elevation="16dp">
+
+        <eightbitlab.com.blurview.BlurView
+            android:id="@+id/grounded_dock_blur"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no" />
+
+        <!-- Sliding glass indicator behind active tab (spring-animated) -->
+        <View
+            android:id="@+id/dock_active_indicator"
+            android:layout_width="64dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center_vertical"
+            android:background="@drawable/bg_liquid_glass_active_pill"
+            android:visibility="invisible" />
+
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/grounded_glass_dock"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:background="@android:color/transparent"
+            app:elevation="0dp"
+            app:itemActiveIndicatorStyle="@null"
+            app:itemIconSize="22dp"
+            app:itemIconTint="@color/selector_grounded_dock_tint"
+            app:itemRippleColor="#33FFFFFF"
+            app:itemTextAppearanceActive="@style/GroundedDockTextActive"
+            app:itemTextAppearanceInactive="@style/GroundedDockTextInactive"
+            app:itemTextColor="@color/selector_grounded_dock_tint"
+            app:labelVisibilityMode="labeled"
+            app:menu="@menu/menu_grounded_dock" />
+
+    </FrameLayout>
+
+</org.schabi.newpipe.views.FocusAwareCoordinator>

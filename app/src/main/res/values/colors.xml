@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <color name="contrastColor">@color/black</color>
-    <color name="defaultIconTint">@color/black</color>
+    <color name="contrastColor">@color/white</color>
+    <color name="defaultIconTint">@color/white</color>
 
     <color name="ic_launcher_background">#CD201F</color>
 
@@ -52,15 +52,16 @@
     <!-- Miscellaneous -->
     <color name="queue_background_color">@color/dark_queue_background_color</color>
     <color name="drawer_header_font_color">#F2FFFFFF</color>
-    <color name="duration_background_color">#aa000000</color>
-    <color name="live_duration_background_color">#c8E53935</color>
+    <color name="duration_background_color">#B3000000</color>
+    <color name="live_duration_background_color">#CCFF2A4B</color>
     <color name="playlist_stream_count_background_color">#e6000000</color>
     <color name="duration_text_color">#EEFFFFFF</color>
     <color name="video_overlay_color">#64000000</color>
 
-    <color name="subscribe_text_color">#fff</color>
-    <color name="subscribed_background_color">#d6d6d6</color>
-    <color name="subscribed_text_color">#717171</color>
+    <color name="subscribe_text_color">#FFFFFF</color>
+    <color name="subscribed_background_color">#33FFFFFF</color>
+    <color name="subscribed_text_color">#ECECF1</color>
+    <color name="subscribe_accent_color">#FF3B5C</color>
 
     <color name="transparent_background_color">#00000000</color>
     <color name="selected_background_color">#96717171</color>
@@ -99,7 +100,24 @@
     <color name="glass_active_capsule_fill">#59E53935</color>
     <color name="glass_active_capsule_stroke">#B3E53935</color>
     <color name="glass_active_glow">#66E53935</color>
-    <color name="glass_page_bg">#0E0E14</color>
-    <color name="glass_card_bg">#0E0E14</color>
+    <!-- Liquid Glass Engine Tokens -->
+    <color name="liquid_glass_dock_top">#B30D0E15</color>
+    <color name="liquid_glass_dock_bottom">#D908090D</color>
+    <color name="liquid_glass_dock_stroke">#59FFFFFF</color>
+    <color name="liquid_glass_pill_fill">#2EFFFFFF</color>
+    <color name="liquid_glass_pill_stroke">#66FFFFFF</color>
+    <color name="liquid_glass_crimson_accent">#FF3B5C</color>
+    <color name="liquid_glass_crimson_tint">#33FF3B5C</color>
+    <color name="liquid_glass_live_pill">#CCFF2A4B</color>
+    <color name="liquid_glass_group_bg">#8C161722</color>
+    <color name="liquid_glass_group_stroke">#24FFFFFF</color>
+    <color name="liquid_glass_text_title">#F5F5F7</color>
+    <color name="liquid_glass_text_secondary">#A1A1AA</color>
+    <color name="liquid_glass_text_channel">#ECECF1</color>
+    <color name="liquid_glass_text_body">#E4E4E7</color>
+    <color name="liquid_glass_action_pill_bg">#26FFFFFF</color>
+    <color name="liquid_glass_action_pill_stroke">#33FFFFFF</color>
+    <color name="liquid_glass_player_bg">#E60D0E15</color>
+    <color name="liquid_glass_overlay_tint">#A60C0D14</color>
 
 </resources>

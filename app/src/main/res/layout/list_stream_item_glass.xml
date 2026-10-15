@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/itemRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="12dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginBottom="6dp"
+    android:background="@drawable/bg_liquid_glass_card"
+    android:clipToOutline="true"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    android:paddingBottom="12dp">
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/itemThumbnailView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="4dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/placeholder_thumbnail_video"
+        app:layout_constraintDimensionRatio="16:9"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:shapeAppearanceOverlay="@style/GlassThumbnail14dp" />
+
+    <org.schabi.newpipe.views.NewPipeTextView
+        android:id="@+id/itemDurationView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_glass_duration_pill"
+        android:paddingHorizontal="6dp"
+        android:paddingVertical="3dp"
+        android:textAllCaps="true"
+        android:textColor="#FFFFFF"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="@id/itemThumbnailView"
+        app:layout_constraintRight_toRightOf="@id/itemThumbnailView"
+        tools:text="14:28" />
+
+    <org.schabi.newpipe.views.NewPipeTextView
+        android:id="@+id/itemVideoTitleView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="12dp"
+        android:ellipsize="end"
+        android:lineSpacingExtra="2dp"
+        android:maxLines="2"
+        android:textColor="@color/liquid_glass_text_title"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/itemThumbnailView"
+        tools:text="Quantum Computing Explained in 10 Minutes" />
+
+    <org.schabi.newpipe.views.NewPipeTextView
+        android:id="@+id/itemUploaderView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:includeFontPadding="false"
+        android:lines="1"
+        android:textColor="@color/liquid_glass_text_primary"
+        android:textSize="13sp"
+        app:layout_constraintEnd_toEndOf="@id/itemVideoTitleView"
+        app:layout_constraintStart_toStartOf="@id/itemVideoTitleView"
+        app:layout_constraintTop_toBottomOf="@+id/itemVideoTitleView"
+        tools:text="Veritasium" />
+
+    <org.schabi.newpipe.views.NewPipeTextView
+        android:id="@+id/itemAdditionalDetails"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:includeFontPadding="false"
+        android:lines="1"
+        android:textColor="@color/liquid_glass_text_secondary"
+        android:textSize="12sp"
+        app:layout_constraintEnd_toEndOf="@+id/itemVideoTitleView"
+        app:layout_constraintStart_toStartOf="@id/itemVideoTitleView"
+        app:layout_constraintTop_toBottomOf="@id/itemUploaderView"
+        tools:text="4.2M views • 2 weeks ago" />
+
+    <org.schabi.newpipe.views.AnimatedProgressBar
+        android:id="@+id/itemProgressView"
+        style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+        android:layout_width="0dp"
+        android:layout_height="3dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginEnd="4dp"
+        android:progressDrawable="@drawable/bg_mini_player_progress"
+        app:layout_constraintBottom_toBottomOf="@id/itemThumbnailView"
+        app:layout_constraintEnd_toEndOf="@id/itemThumbnailView"
+        app:layout_constraintStart_toStartOf="@id/itemThumbnailView" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -47,24 +47,25 @@ import android.widget.Spinner;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.view.GravityCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentContainerView;
 import androidx.fragment.app.FragmentManager;
 import androidx.preference.PreferenceManager;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.transition.MaterialSharedAxis;
+
+import androidx.dynamicanimation.animation.DynamicAnimation;
+import androidx.dynamicanimation.animation.SpringAnimation;
+import androidx.dynamicanimation.animation.SpringForce;
 
 import org.schabi.newpipe.databinding.ActivityMainBinding;
-import org.schabi.newpipe.databinding.DrawerHeaderBinding;
-import org.schabi.newpipe.databinding.DrawerLayoutBinding;
-import org.schabi.newpipe.databinding.GlassNavRailBinding;
-import org.schabi.newpipe.databinding.InstanceSpinnerLayoutBinding;
 import org.schabi.newpipe.databinding.ToolbarLayoutBinding;
 import org.schabi.newpipe.error.ErrorUtil;
 import org.schabi.newpipe.extractor.NewPipe;
@@ -75,6 +76,7 @@ import org.schabi.newpipe.extractor.services.peertube.PeertubeInstance;
 import org.schabi.newpipe.fragments.BackPressable;
 import org.schabi.newpipe.fragments.MainFragment;
 import org.schabi.newpipe.fragments.detail.VideoDetailFragment;
+import org.schabi.newpipe.download.GlassDownloadFragment;
 import org.schabi.newpipe.fragments.list.comments.CommentRepliesFragment;
 import org.schabi.newpipe.fragments.list.search.SearchFragment;
 import org.schabi.newpipe.frost.LibraryHubFragment;
@@ -104,10 +106,8 @@ import org.schabi.newpipe.util.StateSaver;
 import org.schabi.newpipe.util.ThemeHelper;
 import org.schabi.newpipe.util.external_communication.ShareUtils;
 import org.schabi.newpipe.views.FocusOverlayView;
-
-import org.schabi.newpipe.views.glass.GlassDrawable;
-
-import org.schabi.newpipe.views.glass.GlassMotion;
+import org.schabi.newpipe.views.glass.LiquidGlassHelper;
+import org.schabi.newpipe.views.glass.PlayerSheetController;
 
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
@@ -123,26 +123,11 @@ public class MainActivity extends AppCompatActivity {
     public static final boolean DEBUG = !BuildConfig.BUILD_TYPE.equals("release");
 
     private ActivityMainBinding mainBinding;
-    private DrawerHeaderBinding drawerHeaderBinding;
-    private DrawerLayoutBinding drawerLayoutBinding;
     private ToolbarLayoutBinding toolbarLayoutBinding;
-
-    private ActionBarDrawerToggle toggle;
-
-    private boolean servicesShown = false;
+    private PlayerSheetController playerSheetController;
 
     private BroadcastReceiver broadcastReceiver;
 
-    private static final int ITEM_ID_SUBSCRIPTIONS = -1;
-    private static final int ITEM_ID_FEED = -2;
-    private static final int ITEM_ID_BOOKMARKS = -3;
-    private static final int ITEM_ID_DOWNLOADS = -4;
-    private static final int ITEM_ID_HISTORY = -5;
-    private static final int ITEM_ID_SETTINGS = 0;
-    private static final int ITEM_ID_DONATION = 1;
-    private static final int ITEM_ID_ABOUT = 2;
-
-    private static final int ORDER = 0;
     public static final String KEY_IS_IN_BACKGROUND = "is_in_background";
 
     private SharedPreferences sharedPreferences;
@@ -180,9 +165,6 @@ public class MainActivity extends AppCompatActivity {
         sharedPrefEditor = sharedPreferences.edit();
 
         mainBinding = ActivityMainBinding.inflate(getLayoutInflater());
-        drawerLayoutBinding = mainBinding.drawerLayout;
-        drawerHeaderBinding = DrawerHeaderBinding.bind(drawerLayoutBinding.navigation
-                .getHeaderView(0));
         toolbarLayoutBinding = mainBinding.toolbarLayout;
         setContentView(mainBinding.getRoot());
 
@@ -191,17 +173,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         setSupportActionBar(toolbarLayoutBinding.toolbar);
-        GlassDrawable.setupBlurView(
-                toolbarLayoutBinding.headerBackdrop, mainBinding.blurTarget, 0);
-        toolbarLayoutBinding.toolbarSearchContainer.getRoot().setBackground(
-                GlassDrawable.createPill(this));
-        setupGlassRail();
+        setupHeaderActions();
+        setupGroundedDock();
         setupLiquidStatusBar();
-        try {
-            setupDrawer();
-        } catch (final Exception e) {
-            ErrorUtil.showUiErrorSnackbar(this, "Setting up drawer", e);
-        }
         if (DeviceUtils.isTv(this)) {
             FocusOverlayView.setupFocusObserver(this);
         }
@@ -284,439 +258,173 @@ public class MainActivity extends AppCompatActivity {
         sharedPrefEditor.putBoolean(KEY_IS_IN_BACKGROUND, true).apply();
         Log.d(TAG, "App moved to background");
     }
-    private int systemBarBottomInset = 0;
+    public PlayerSheetController getPlayerSheetController() {
+        return playerSheetController;
+    }
 
     /**
-     * Wires up the frosted-glass navigation rail on the right edge.
+     * Wires up the grounded YouTube Liquid Glass bottom dock bar with SpringAnimation indicator.
      */
-    private void setupGlassRail() {
-        final GlassNavRailBinding rail = mainBinding.glassRail;
+    private void setupGroundedDock() {
+        final BottomNavigationView dock = mainBinding.groundedGlassDock;
+        final FrameLayout dockContainer = mainBinding.groundedDockContainer;
 
-        // Apply two-layer liquid glass surfaces: outer capsule + inner crimson bloom capsule
-        GlassDrawable.setupBlurView(
-                rail.getRoot(), mainBinding.blurTarget, GlassDrawable.RADIUS_FULL);
-        rail.railActiveCapsule.setBackground(GlassDrawable.createActiveCapsule(this));
+        LiquidGlassHelper.applyLiquidGlass(
+                mainBinding.groundedDockBlur,
+                mainBinding.blurTarget,
+                LiquidGlassHelper.DEFAULT_BLUR_RADIUS_API31,
+                LiquidGlassHelper.DEFAULT_SATURATION,
+                LiquidGlassHelper.DEFAULT_OVERLAY_TINT
+        );
 
-        // Apply 150ms press spring scale to rail items
-        GlassMotion.applyPressScale(rail.railHome);
-        GlassMotion.applyPressScale(rail.railSubscriptions);
-        GlassMotion.applyPressScale(rail.railLibrary);
+        playerSheetController = new PlayerSheetController(
+                this,
+                mainBinding.fragmentPlayerHolder,
+                dockContainer
+        );
 
-        rail.railHome.setOnClickListener(v -> {
-            final Fragment f = getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
-            if (f instanceof MainFragment) {
-                getSupportFragmentManager().popBackStack(null,
-                        FragmentManager.POP_BACK_STACK_INCLUSIVE);
-            } else {
-                NavigationHelper.openMainFragment(getSupportFragmentManager());
+        dock.setOnItemSelectedListener(item -> {
+            final int itemId = item.getItemId();
+            animateDockIndicator(itemId);
+
+            if (itemId == R.id.nav_home) {
+                switchTabFragment(new MainFragment());
+                return true;
+            } else if (itemId == R.id.nav_subscriptions) {
+                switchTabFragment(new SubscriptionFragment());
+                return true;
+            } else if (itemId == R.id.nav_downloads) {
+                switchTabFragment(new GlassDownloadFragment());
+                return true;
+            } else if (itemId == R.id.nav_library) {
+                switchTabFragment(new LibraryHubFragment());
+                return true;
             }
+            return false;
         });
-        rail.railSubscriptions.setOnClickListener(v ->
-                NavigationHelper.openSubscriptionFragment(getSupportFragmentManager()));
-        rail.railLibrary.setOnClickListener(v -> openLibraryHub());
 
-        // Listen for WindowInsets dynamically (no hardcoded status/nav bar heights)
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(
-                mainBinding.getRoot(), (v, insets) -> {
-            final androidx.core.graphics.Insets bars = insets.getInsets(
-                    androidx.core.view.WindowInsetsCompat.Type.systemBars());
-            systemBarBottomInset = bars.bottom;
-            updateRailPosition();
+        ViewCompat.setOnApplyWindowInsetsListener(dockContainer, (v, insets) -> {
+            final int bottom = insets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()).bottom;
+            v.setPadding(0, 0, 0, bottom);
+            dock.post(() -> {
+                if (playerSheetController != null) {
+                    playerSheetController.updatePeekHeight();
+                }
+                updateDockSelection();
+            });
             return insets;
         });
 
-        getSupportFragmentManager().addOnBackStackChangedListener(this::updateRailSelection);
-        mainBinding.getRoot().post(() -> {
-            updateRailSelection();
-            updateRailPosition();
-        });
-
-        try {
-            final BottomSheetBehavior<?> bsb =
-                    BottomSheetBehavior.from(
-                            mainBinding.fragmentPlayerHolder);
-            bsb.addBottomSheetCallback(
-                    new BottomSheetBehavior.BottomSheetCallback() {
-                @Override
-                public void onStateChanged(@NonNull final View bottomSheet, final int newState) {
-                    updateRailPosition();
-                    if (newState == BottomSheetBehavior.STATE_EXPANDED) {
-                        rail.getRoot().setVisibility(View.GONE);
-                    } else if (newState == BottomSheetBehavior.STATE_COLLAPSED
-                            || newState == BottomSheetBehavior.STATE_HIDDEN) {
-                        rail.getRoot().setVisibility(View.VISIBLE);
-                        rail.getRoot().setAlpha(1f);
-                    }
-                }
-
-                @Override
-                public void onSlide(@NonNull final View bottomSheet, final float slideOffset) {
-                    if (slideOffset > 0.05f) {
-                        rail.getRoot().setAlpha(Math.max(0f, 1f - slideOffset * 2.5f));
-                        if (slideOffset > 0.4f) {
-                            rail.getRoot().setVisibility(View.GONE);
-                        }
-                    } else {
-                        rail.getRoot().setVisibility(View.VISIBLE);
-                        rail.getRoot().setAlpha(1f);
-                    }
-                }
-            });
-        } catch (final Exception ignored) {
-        }
+        getSupportFragmentManager().addOnBackStackChangedListener(this::updateDockSelection);
+        dock.post(this::updateDockSelection);
     }
 
     /**
-     * Updates the dynamic bottom position of the nav rail based on WindowInsets
-     * and the mini player's state and peek height, ensuring it sits cleanly above
-     * the mini player without covering its controls.
+     * Animates the sliding glass indicator view behind the active tab icon/label
+     * using SpringAnimation (STIFFNESS_LOW, DAMPING_RATIO_LOW_BOUNCY).
      */
-    private void updateRailPosition() {
-        final GlassNavRailBinding rail = mainBinding.glassRail;
-        final ViewGroup.LayoutParams baseLp = rail.getRoot().getLayoutParams();
-        if (!(baseLp instanceof CoordinatorLayout.LayoutParams)) {
-            return;
-        }
-        final CoordinatorLayout.LayoutParams lp =
-                (CoordinatorLayout.LayoutParams) baseLp;
-
-        final int margin12 = (int) (12 * getResources().getDisplayMetrics().density);
-        lp.rightMargin = margin12;
-
-        int miniPlayerOffset = 0;
-        try {
-            final BottomSheetBehavior<?> bsb =
-                    BottomSheetBehavior.from(
-                            mainBinding.fragmentPlayerHolder);
-            if (bsb.getState() == BottomSheetBehavior.STATE_COLLAPSED) {
-                miniPlayerOffset = bsb.getPeekHeight();
+    private void animateDockIndicator(final int itemId) {
+        final BottomNavigationView dock = mainBinding.groundedGlassDock;
+        final View indicator = mainBinding.dockActiveIndicator;
+        dock.post(() -> {
+            final View itemView = dock.findViewById(itemId);
+            if (itemView == null) {
+                return;
             }
-        } catch (final Exception ignored) {
-        }
-
-        final int bottomMargin = Math.max(systemBarBottomInset, 0) + miniPlayerOffset + margin12;
-        if (lp.bottomMargin != bottomMargin) {
-            lp.bottomMargin = bottomMargin;
-            rail.getRoot().setLayoutParams(lp);
-        }
+            final float targetX = itemView.getX() + (itemView.getWidth() - indicator.getWidth()) / 2f;
+            if (indicator.getVisibility() != View.VISIBLE) {
+                indicator.setX(targetX);
+                indicator.setVisibility(View.VISIBLE);
+                return;
+            }
+            final SpringAnimation spring = new SpringAnimation(
+                    indicator,
+                    DynamicAnimation.TRANSLATION_X);
+            final SpringForce force = new SpringForce(targetX);
+            force.setStiffness(SpringForce.STIFFNESS_LOW);
+            force.setDampingRatio(SpringForce.DAMPING_RATIO_LOW_BOUNCY);
+            spring.setSpring(force);
+            spring.start();
+        });
     }
 
     /**
-     * Highlights the rail item that matches the fragment currently on screen
-     * using the 250ms overshoot sliding red glass capsule indicator and typography tokens.
+     * Smoothly switches between bottom dock tabs using MaterialSharedAxis(MaterialSharedAxis.Y, true) (280ms).
      */
-    private void updateRailSelection() {
-        final Fragment fragment = getSupportFragmentManager()
-                .findFragmentById(R.id.fragment_holder);
-        final GlassNavRailBinding rail = mainBinding.glassRail;
-
-        final boolean isHome = fragment instanceof MainFragment;
-        final boolean isSubs = fragment instanceof SubscriptionFragment
-                || fragment instanceof FeedFragment;
-        final boolean isLib = fragment instanceof LibraryHubFragment
-                || fragment instanceof BookmarkFragment
-                || fragment instanceof LocalPlaylistFragment
-                || fragment instanceof StatisticsPlaylistFragment;
-
-        rail.railHome.setSelected(isHome);
-        rail.railSubscriptions.setSelected(isSubs);
-        rail.railLibrary.setSelected(isLib);
-
-        final View targetView = isSubs ? rail.railSubscriptions
-                : (isLib ? rail.railLibrary : rail.railHome);
-        targetView.post(() -> GlassMotion.slideIndicator(
-                rail.railActiveCapsule, targetView.getTop()));
-
-        final int primaryColor = ContextCompat.getColor(this, R.color.glass_text_primary);
-        final int secondaryColor = ContextCompat.getColor(this, R.color.glass_text_secondary);
-
-        rail.railIconHome.setImageTintList(android.content.res.ColorStateList.valueOf(
-                isHome ? primaryColor : secondaryColor));
-        rail.railTextHome.setTextColor(isHome ? primaryColor : secondaryColor);
-
-        rail.railIconSubscriptions.setImageTintList(android.content.res.ColorStateList.valueOf(
-                isSubs ? primaryColor : secondaryColor));
-        rail.railTextSubscriptions.setTextColor(isSubs ? primaryColor : secondaryColor);
-
-        rail.railIconLibrary.setImageTintList(android.content.res.ColorStateList.valueOf(
-                isLib ? primaryColor : secondaryColor));
-        rail.railTextLibrary.setTextColor(isLib ? primaryColor : secondaryColor);
-    }
-
-    private void openLibraryHub() {
-        final Fragment current = getSupportFragmentManager()
-                .findFragmentById(R.id.fragment_holder);
-        if (current instanceof LibraryHubFragment) {
+    private void switchTabFragment(final Fragment fragment) {
+        final Fragment current = getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
+        if (current != null && current.getClass().equals(fragment.getClass())) {
             return;
         }
+
+        final MaterialSharedAxis enterTransition = new MaterialSharedAxis(MaterialSharedAxis.Y, true);
+        enterTransition.setDuration(280L);
+        final MaterialSharedAxis exitTransition = new MaterialSharedAxis(MaterialSharedAxis.Y, false);
+        exitTransition.setDuration(280L);
+
+        fragment.setEnterTransition(enterTransition);
+        fragment.setExitTransition(exitTransition);
+
         getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fragment_holder, new LibraryHubFragment())
-                .addToBackStack(null)
+                .replace(R.id.fragment_holder, fragment)
                 .commit();
     }
 
-    private void setupDrawer() throws ExtractionException {
-        addDrawerMenuForCurrentService();
+    /**
+     * Synchronizes grounded dock selection and sliding indicator with the active fragment.
+     */
+    private void updateDockSelection() {
+        final Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
+        final BottomNavigationView dock = mainBinding.groundedGlassDock;
+        int targetId = R.id.nav_home;
 
-        toggle = new ActionBarDrawerToggle(this, mainBinding.getRoot(),
-                toolbarLayoutBinding.toolbar, R.string.drawer_open, R.string.drawer_close);
-        toggle.syncState();
-        mainBinding.getRoot().addDrawerListener(toggle);
-        mainBinding.getRoot().addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
-            private int lastService;
+        if (fragment instanceof MainFragment) {
+            targetId = R.id.nav_home;
+        } else if (fragment instanceof SubscriptionFragment || fragment instanceof FeedFragment) {
+            targetId = R.id.nav_subscriptions;
+        } else if (fragment instanceof GlassDownloadFragment) {
+            targetId = R.id.nav_downloads;
+        } else if (fragment instanceof LibraryHubFragment
+                || fragment instanceof BookmarkFragment
+                || fragment instanceof LocalPlaylistFragment
+                || fragment instanceof StatisticsPlaylistFragment) {
+            targetId = R.id.nav_library;
+        }
 
-            @Override
-            public void onDrawerOpened(final View drawerView) {
-                lastService = ServiceHelper.getSelectedServiceId(MainActivity.this);
-            }
-
-            @Override
-            public void onDrawerClosed(final View drawerView) {
-                if (servicesShown) {
-                    toggleServices();
-                }
-                if (lastService != ServiceHelper.getSelectedServiceId(MainActivity.this)) {
-                    ActivityCompat.recreate(MainActivity.this);
-                }
-            }
-        });
-
-        drawerLayoutBinding.navigation.setNavigationItemSelectedListener(this::drawerItemSelected);
-        setupDrawerHeader();
+        if (dock.getSelectedItemId() != targetId) {
+            dock.getMenu().findItem(targetId).setChecked(true);
+        }
+        animateDockIndicator(targetId);
     }
 
     /**
-     * Builds the drawer menu for the current service.
-     *
-     * @throws ExtractionException if the service didn't provide available kiosks
+     * Sets up WhatsApp iOS style header actions: frosted search pill and settings button.
      */
-    private void addDrawerMenuForCurrentService() throws ExtractionException {
-        //Tabs
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_SUBSCRIPTIONS, ORDER,
-                        R.string.tab_subscriptions)
-                .setIcon(R.drawable.ic_tv);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_FEED, ORDER, R.string.fragment_feed_title)
-                .setIcon(R.drawable.ic_subscriptions);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_BOOKMARKS, ORDER, R.string.tab_bookmarks)
-                .setIcon(R.drawable.ic_bookmark);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_DOWNLOADS, ORDER, R.string.downloads)
-                .setIcon(R.drawable.ic_file_download);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_HISTORY, ORDER, R.string.action_history)
-                .setIcon(R.drawable.ic_history);
+    private void setupHeaderActions() {
+        LiquidGlassHelper.applyLiquidGlass(
+                toolbarLayoutBinding.headerBackdrop,
+                mainBinding.blurTarget,
+                LiquidGlassHelper.DEFAULT_BLUR_RADIUS_API31,
+                LiquidGlassHelper.DEFAULT_SATURATION,
+                LiquidGlassHelper.DEFAULT_OVERLAY_TINT
+        );
 
-        //Kiosks
-        final int currentServiceId = ServiceHelper.getSelectedServiceId(this);
-        final StreamingService service = NewPipe.getService(currentServiceId);
-
-        int kioskMenuItemId = 0;
-
-        for (final String ks : service.getKioskList().getAvailableKiosks()) {
-            drawerLayoutBinding.navigation.getMenu()
-                    .add(R.id.menu_kiosks_group, kioskMenuItemId, 0, KioskTranslator
-                            .getTranslatedKioskName(ks, this))
-                    .setIcon(KioskTranslator.getKioskIcon(ks));
-            kioskMenuItemId++;
-        }
-
-        //Settings and About
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_options_about_group, ITEM_ID_SETTINGS, ORDER, R.string.settings)
-                .setIcon(R.drawable.ic_settings);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_options_about_group, ITEM_ID_DONATION, ORDER,
-                        R.string.donation_title)
-                .setIcon(R.drawable.volunteer_activism_ic);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_options_about_group, ITEM_ID_ABOUT, ORDER, R.string.tab_about)
-                .setIcon(R.drawable.ic_info_outline);
-    }
-
-    private boolean drawerItemSelected(final MenuItem item) {
-        final int groupId = item.getGroupId();
-        if (groupId == R.id.menu_services_group) {
-            changeService(item);
-        } else if (groupId == R.id.menu_tabs_group) {
-            tabSelected(item);
-        } else if (groupId == R.id.menu_kiosks_group) {
+        toolbarLayoutBinding.headerSearchPill.setOnClickListener(v -> {
             try {
-                kioskSelected(item);
+                NavigationHelper.openSearchFragment(
+                        getSupportFragmentManager(),
+                        ServiceHelper.getSelectedServiceId(this),
+                        ""
+                );
             } catch (final Exception e) {
-                ErrorUtil.showUiErrorSnackbar(this, "Selecting drawer kiosk", e);
-            }
-        } else if (groupId == R.id.menu_options_about_group) {
-            optionsAboutSelected(item);
-        } else {
-            return false;
-        }
-
-        mainBinding.getRoot().closeDrawers();
-        return true;
-    }
-
-    private void changeService(final MenuItem item) {
-        drawerLayoutBinding.navigation.getMenu()
-                .getItem(ServiceHelper.getSelectedServiceId(this))
-                .setChecked(false);
-        ServiceHelper.setSelectedServiceId(this, item.getItemId());
-        drawerLayoutBinding.navigation.getMenu()
-                .getItem(ServiceHelper.getSelectedServiceId(this))
-                .setChecked(true);
-    }
-
-    private void tabSelected(final MenuItem item) {
-        switch (item.getItemId()) {
-            case ITEM_ID_SUBSCRIPTIONS:
-                NavigationHelper.openSubscriptionFragment(getSupportFragmentManager());
-                break;
-            case ITEM_ID_FEED:
-                NavigationHelper.openFeedFragment(getSupportFragmentManager());
-                break;
-            case ITEM_ID_BOOKMARKS:
-                NavigationHelper.openBookmarksFragment(getSupportFragmentManager());
-                break;
-            case ITEM_ID_DOWNLOADS:
-                NavigationHelper.openDownloads(this);
-                break;
-            case ITEM_ID_HISTORY:
-                NavigationHelper.openStatisticFragment(getSupportFragmentManager());
-                break;
-        }
-    }
-
-    private void kioskSelected(final MenuItem item) throws ExtractionException {
-        final StreamingService currentService = ServiceHelper.getSelectedService(this);
-        int kioskMenuItemId = 0;
-        for (final String kioskId : currentService.getKioskList().getAvailableKiosks()) {
-            if (kioskMenuItemId == item.getItemId()) {
-                NavigationHelper.openKioskFragment(getSupportFragmentManager(),
-                        currentService.getServiceId(), kioskId);
-                break;
-            }
-            kioskMenuItemId++;
-        }
-    }
-
-    private void optionsAboutSelected(final MenuItem item) {
-        switch (item.getItemId()) {
-            case ITEM_ID_SETTINGS:
-                NavigationHelper.openSettings(this);
-                break;
-            case ITEM_ID_DONATION:
-                ShareUtils.openUrlInBrowser(this, getString(R.string.donation_url));
-                break;
-            case ITEM_ID_ABOUT:
-                NavigationHelper.openAbout(this);
-                break;
-        }
-    }
-
-    private void setupDrawerHeader() {
-        drawerHeaderBinding.drawerHeaderActionButton.setOnClickListener(view -> toggleServices());
-
-        // If the current app name is bigger than the default "NewPipe" (7 chars),
-        // let the text view grow a little more as well.
-        if (getString(R.string.app_name).length() > "NewPipe".length()) {
-            final ViewGroup.LayoutParams layoutParams =
-                    drawerHeaderBinding.drawerHeaderNewpipeTitle.getLayoutParams();
-            layoutParams.width = ViewGroup.LayoutParams.WRAP_CONTENT;
-            drawerHeaderBinding.drawerHeaderNewpipeTitle.setLayoutParams(layoutParams);
-            drawerHeaderBinding.drawerHeaderNewpipeTitle.setMaxLines(2);
-            drawerHeaderBinding.drawerHeaderNewpipeTitle.setMinWidth(getResources()
-                    .getDimensionPixelSize(R.dimen.drawer_header_newpipe_title_default_width));
-            drawerHeaderBinding.drawerHeaderNewpipeTitle.setMaxWidth(getResources()
-                    .getDimensionPixelSize(R.dimen.drawer_header_newpipe_title_max_width));
-        }
-    }
-
-    private void toggleServices() {
-        servicesShown = !servicesShown;
-
-        drawerLayoutBinding.navigation.getMenu().removeGroup(R.id.menu_services_group);
-        drawerLayoutBinding.navigation.getMenu().removeGroup(R.id.menu_tabs_group);
-        drawerLayoutBinding.navigation.getMenu().removeGroup(R.id.menu_kiosks_group);
-        drawerLayoutBinding.navigation.getMenu().removeGroup(R.id.menu_options_about_group);
-
-        // Show up or down arrow
-        drawerHeaderBinding.drawerArrow.setImageResource(
-                servicesShown ? R.drawable.ic_arrow_drop_up : R.drawable.ic_arrow_drop_down);
-
-        if (servicesShown) {
-            showServices();
-        } else {
-            try {
-                addDrawerMenuForCurrentService();
-            } catch (final Exception e) {
-                ErrorUtil.showUiErrorSnackbar(this, "Showing main page tabs", e);
-            }
-        }
-    }
-
-    private void showServices() {
-        for (final StreamingService s : NewPipe.getServices()) {
-            final String title = s.getServiceInfo().getName();
-
-            final MenuItem menuItem = drawerLayoutBinding.navigation.getMenu()
-                    .add(R.id.menu_services_group, s.getServiceId(), ORDER, title)
-                    .setIcon(ServiceHelper.getIcon(s.getServiceId()));
-
-            // peertube specifics
-            if (s.getServiceId() == 3) {
-                enhancePeertubeMenu(menuItem);
-            }
-        }
-        drawerLayoutBinding.navigation.getMenu()
-                .getItem(ServiceHelper.getSelectedServiceId(this))
-                .setChecked(true);
-    }
-
-    private void enhancePeertubeMenu(final MenuItem menuItem) {
-        final PeertubeInstance currentInstance = PeertubeHelper.getCurrentInstance();
-        menuItem.setTitle(currentInstance.getName());
-        final Spinner spinner = InstanceSpinnerLayoutBinding.inflate(LayoutInflater.from(this))
-                .getRoot();
-        final List<PeertubeInstance> instances = PeertubeHelper.getInstanceList(this);
-        final List<String> items = new ArrayList<>();
-        int defaultSelect = 0;
-        for (final PeertubeInstance instance : instances) {
-            items.add(instance.getName());
-            if (instance.getUrl().equals(currentInstance.getUrl())) {
-                defaultSelect = items.size() - 1;
-            }
-        }
-        final ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                R.layout.instance_spinner_item, items);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
-        spinner.setSelection(defaultSelect, false);
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(final AdapterView<?> parent, final View view,
-                                       final int position, final long id) {
-                final PeertubeInstance newInstance = instances.get(position);
-                if (newInstance.getUrl().equals(PeertubeHelper.getCurrentInstance().getUrl())) {
-                    return;
-                }
-                PeertubeHelper.selectInstance(newInstance, getApplicationContext());
-                changeService(menuItem);
-                mainBinding.getRoot().closeDrawers();
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    getSupportFragmentManager().popBackStack(null,
-                            FragmentManager.POP_BACK_STACK_INCLUSIVE);
-                    ActivityCompat.recreate(MainActivity.this);
-                }, 300);
-            }
-
-            @Override
-            public void onNothingSelected(final AdapterView<?> parent) {
-
+                ErrorUtil.showUiErrorSnackbar(this, "Opening search", e);
             }
         });
-        menuItem.setActionView(spinner);
+
+        toolbarLayoutBinding.headerSettingsBtn.setOnClickListener(v -> {
+            NavigationHelper.openSettings(this);
+        });
     }
 
     @Override
@@ -732,28 +440,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onResume() {
-        // Change the date format to match the selected language on resume
         Localization.initPrettyTime(Localization.resolvePrettyTime());
         super.onResume();
-
-        // Close drawer on return, and don't show animation,
-        // so it looks like the drawer isn't open when the user returns to MainActivity
-        mainBinding.getRoot().closeDrawer(GravityCompat.START, false);
-        try {
-            final int selectedServiceId = ServiceHelper.getSelectedServiceId(this);
-            final String selectedServiceName = NewPipe.getService(selectedServiceId)
-                    .getServiceInfo().getName();
-            drawerHeaderBinding.drawerHeaderServiceView.setText(selectedServiceName);
-            drawerHeaderBinding.drawerHeaderServiceIcon.setImageResource(ServiceHelper
-                    .getIcon(selectedServiceId));
-
-            drawerHeaderBinding.drawerHeaderServiceView.post(() -> drawerHeaderBinding
-                    .drawerHeaderServiceView.setSelected(true));
-            drawerHeaderBinding.drawerHeaderActionButton.setContentDescription(
-                    getString(R.string.drawer_header_description) + selectedServiceName);
-        } catch (final Exception e) {
-            ErrorUtil.showUiErrorSnackbar(this, "Setting up service toggle", e);
-        }
 
         if (sharedPreferences.getBoolean(Constants.KEY_THEME_CHANGE, false)) {
             if (DEBUG) {
@@ -770,11 +458,6 @@ public class MainActivity extends AppCompatActivity {
             sharedPrefEditor.putBoolean(Constants.KEY_MAIN_PAGE_CHANGE, false).apply();
             NavigationHelper.openMainActivity(this);
         }
-
-        final boolean isHistoryEnabled = sharedPreferences.getBoolean(
-                getString(R.string.enable_watch_history_key), true);
-        drawerLayoutBinding.navigation.getMenu().findItem(ITEM_ID_HISTORY)
-                .setVisible(isHistoryEnabled);
     }
 
     @Override
@@ -817,11 +500,9 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "onBackPressed() called");
         }
 
-        if (DeviceUtils.isTv(this)) {
-            if (mainBinding.getRoot().isDrawerOpen(drawerLayoutBinding.navigation)) {
-                mainBinding.getRoot().closeDrawers();
-                return;
-            }
+        if (playerSheetController != null && playerSheetController.isExpanded()) {
+            playerSheetController.collapse();
+            return;
         }
 
         // In case bottomSheet is not visible on the screen or collapsed we can assume that the user
@@ -1008,14 +689,7 @@ public class MainActivity extends AppCompatActivity {
                 .findFragmentById(R.id.fragment_holder);
         if (fragment instanceof MainFragment) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(false);
-            if (toggle != null) {
-                toggle.syncState();
-                toolbarLayoutBinding.toolbar.setNavigationOnClickListener(v -> mainBinding.getRoot()
-                        .open());
-                mainBinding.getRoot().setDrawerLockMode(DrawerLayout.LOCK_MODE_UNDEFINED);
-            }
         } else {
-            mainBinding.getRoot().setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             toolbarLayoutBinding.toolbar.setNavigationOnClickListener(v -> onHomeButtonPressed());
         }

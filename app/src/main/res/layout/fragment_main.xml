@@ -1,36 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="vertical">
 
-    <org.schabi.newpipe.views.ScrollableTabLayout
-        android:id="@+id/main_tab_layout"
+    <!-- Sticky Frosted Glass Filter Strip -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/home_filter_strip"
         android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:layout_alignParentTop="true"
-        android:background="@android:color/transparent"
+        android:layout_height="48dp"
         android:clipToPadding="false"
-        android:paddingHorizontal="12dp"
-        android:paddingVertical="2dp"
-        app:tabBackground="@drawable/frost_chip_bg"
-        app:tabGravity="center"
-        app:tabIconTint="@color/white"
-        app:tabIndicatorColor="@android:color/transparent"
-        app:tabIndicatorHeight="0dp"
-        app:tabMaxWidth="72dp"
-        app:tabMinWidth="60dp"
-        app:tabMode="fixed"
-        app:tabPaddingBottom="0dp"
-        app:tabPaddingEnd="0dp"
-        app:tabPaddingStart="0dp"
-        app:tabPaddingTop="0dp"
-        app:tabRippleColor="#22FFFFFF" />
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:scrollbars="none" />
 
     <androidx.viewpager.widget.ViewPager
         android:id="@+id/pager"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@id/main_tab_layout" />
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
-</RelativeLayout>
+</LinearLayout>

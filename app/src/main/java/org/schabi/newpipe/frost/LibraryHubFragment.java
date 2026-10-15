@@ -11,7 +11,9 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.schabi.newpipe.NewPipeDatabase;
@@ -88,10 +90,16 @@ public class LibraryHubFragment extends Fragment {
         recent.setLayoutManager(new LinearLayoutManager(requireContext(),
                 RecyclerView.HORIZONTAL, false));
         recent.setAdapter(historyAdapter);
+        new PagerSnapHelper().attachToRecyclerView(recent);
+
         final TextView recentEmpty = root.findViewById(R.id.hub_recent_empty);
+        final TextView historyBadge = root.findViewById(R.id.hub_history_badge);
         viewDisposables.add(new HistoryRecordManager(requireContext()).getStreamStatistics()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(entries -> {
+                    if (historyBadge != null) {
+                        historyBadge.setText(entries.size() + " " + getString(R.string.watched));
+                    }
                     final List<StreamStatisticsEntry> unfinished = new ArrayList<>();
                     for (final StreamStatisticsEntry entry : entries) {
                         final long duration = entry.getStreamEntity().getDuration() * 1000;
@@ -109,7 +117,7 @@ public class LibraryHubFragment extends Fragment {
 
         final RecyclerView playlists = root.findViewById(R.id.hub_saved_playlists);
         final LocalItemListAdapter playlistAdapter = new LocalItemListAdapter(requireContext());
-        playlistAdapter.setItemViewMode(ItemViewMode.LIST);
+        playlistAdapter.setItemViewMode(ItemViewMode.CARD);
         playlistAdapter.setSelectedListener(new OnClickGesture<>() {
             @Override
             public void selected(final LocalItem selectedItem) {
@@ -118,12 +126,16 @@ public class LibraryHubFragment extends Fragment {
                         playlist.getUid(), playlist.getOrderingName());
             }
         });
-        playlists.setLayoutManager(new LinearLayoutManager(requireContext()));
+        playlists.setLayoutManager(new GridLayoutManager(requireContext(), 2));
         playlists.setAdapter(playlistAdapter);
         final TextView playlistsEmpty = root.findViewById(R.id.hub_playlists_empty);
+        final TextView playlistsBadge = root.findViewById(R.id.hub_playlists_badge);
         viewDisposables.add(new LocalPlaylistManager(NewPipeDatabase.getInstance(requireContext()))
                 .getPlaylists().observeOn(AndroidSchedulers.mainThread())
                 .subscribe(entries -> {
+                    if (playlistsBadge != null) {
+                        playlistsBadge.setText(entries.size() + " " + getString(R.string.tab_playlists));
+                    }
                     playlistAdapter.clearStreamItemList();
                     playlistAdapter.addItems(entries.subList(0, Math.min(8, entries.size())));
                     playlists.setVisibility(entries.isEmpty() ? View.GONE : View.VISIBLE);

@@ -49,6 +49,10 @@ import org.schabi.newpipe.local.subscription.item.ImportSubscriptionsHintPlaceho
 import org.schabi.newpipe.util.NavigationHelper
 import org.schabi.newpipe.util.OnClickGesture
 import org.schabi.newpipe.util.ServiceHelper
+import androidx.recyclerview.widget.LinearLayoutManager
+import org.schabi.newpipe.views.glass.ChannelAvatarDockAdapter
+import org.schabi.newpipe.views.glass.ChannelAvatarItem
+import org.schabi.newpipe.views.glass.GlassFilterAdapter
 import org.schabi.newpipe.util.ThemeHelper.getGridSpanCountChannels
 import org.schabi.newpipe.util.external_communication.ShareUtils
 
@@ -59,6 +63,7 @@ class SubscriptionFragment : BaseStateFragment<SubscriptionState>() {
     private lateinit var viewModel: SubscriptionViewModel
     private lateinit var subscriptionManager: SubscriptionManager
     private lateinit var importExportHelper: SubscriptionsImportExportHelper
+    private lateinit var avatarDockAdapter: ChannelAvatarDockAdapter
     private val disposables: CompositeDisposable = CompositeDisposable()
 
     private val groupAdapter = GroupAdapter<GroupieViewHolder<FeedItemCarouselBinding>>()
@@ -208,6 +213,54 @@ class SubscriptionFragment : BaseStateFragment<SubscriptionState>() {
         }
 
         setupInitialLayout()
+        setupAvatarDockAndFilters()
+    }
+
+    private fun setupAvatarDockAndFilters() {
+        avatarDockAdapter = ChannelAvatarDockAdapter { item ->
+            NavigationHelper.openChannelFragment(
+                fm,
+                item.serviceId,
+                item.url,
+                item.name
+            )
+        }
+        binding.channelAvatarDock.channelAvatarRecycler.layoutManager =
+            LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        binding.channelAvatarDock.channelAvatarRecycler.adapter = avatarDockAdapter
+
+        binding.channelAvatarDock.channelAvatarAllBtn.setOnClickListener {
+            binding.itemsList.smoothScrollToPosition(0)
+        }
+
+        val filters = listOf(
+            getString(R.string.all),
+            "Today",
+            "Continue Watching",
+            "Unwatched",
+            "Live"
+        )
+        val filterAdapter = GlassFilterAdapter(filters) { category, _ ->
+            when (category) {
+                "Live" -> {
+                    try {
+                        NavigationHelper.openSearchFragment(
+                            parentFragmentManager,
+                            ServiceHelper.getSelectedServiceId(requireContext()),
+                            "Live"
+                        )
+                    } catch (e: Exception) {
+                        // ignore
+                    }
+                }
+                else -> {
+                    // Filter selection
+                }
+            }
+        }
+        binding.channelAvatarDock.subscriptionFilterStrip.layoutManager =
+            LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        binding.channelAvatarDock.subscriptionFilterStrip.adapter = filterAdapter
     }
 
     private fun setupInitialLayout() {
@@ -351,6 +404,20 @@ class SubscriptionFragment : BaseStateFragment<SubscriptionState>() {
 
                 subscriptionsSection.update(result.subscriptions)
                 subscriptionsSection.setHideWhenEmpty(false)
+
+                val avatarItems = result.subscriptions.filterIsInstance<ChannelItem>().map { channelItem ->
+                    val info = channelItem.channel
+                    ChannelAvatarItem(
+                        serviceId = info.serviceId,
+                        url = info.url,
+                        name = info.name,
+                        avatarUrl = info.thumbnails.firstOrNull()?.url,
+                        hasUnread = false
+                    )
+                }
+                if (::avatarDockAdapter.isInitialized) {
+                    avatarDockAdapter.updateChannels(avatarItems)
+                }
 
                 if (itemsListState != null) {
                     binding.itemsList.layoutManager?.onRestoreInstanceState(itemsListState)

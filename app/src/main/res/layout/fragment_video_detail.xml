@@ -69,12 +69,13 @@
                         android:layout_height="match_parent"
                         android:layout_marginEnd="30dp"
                         android:ellipsize="end"
-                        android:maxLines="1"
+                        android:maxLines="2"
                         android:paddingTop="12dp"
                         android:paddingBottom="8dp"
-                        android:textAppearance="?android:attr/textAppearanceLarge"
-                        android:textSize="@dimen/video_item_detail_title_text_size"
-                        tools:text="Lorem ipsum dolor sit amet, consectetur adipiscing elit sed a ultricies ex. Integer sit amet sodales risus. Duis non mi et urna pretium bibendum. Nunc eleifend est quis ipsum porttitor egestas. Sed facilisis, nisl quis eleifend pellentesque, orci metus egestas dolor, at accumsan eros metus quis libero." />
+                        android:textColor="#F5F5F7"
+                        android:textSize="17sp"
+                        android:textStyle="bold"
+                        tools:text="Video Title Here" />
 
                     <ImageView
                         android:id="@+id/detail_toggle_secondary_controls_view"
@@ -177,21 +178,6 @@
                                 android:orientation="vertical">
 
                                 <org.schabi.newpipe.views.NewPipeTextView
-                                    android:id="@+id/detail_sub_channel_text_view"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:ellipsize="marquee"
-                                    android:fadingEdge="horizontal"
-                                    android:marqueeRepeatLimit="marquee_forever"
-                                    android:scrollHorizontally="true"
-                                    android:singleLine="true"
-                                    android:textAppearance="?android:attr/textAppearanceLarge"
-                                    android:textSize="@dimen/video_item_detail_sub_channel_text_size"
-                                    android:textStyle="normal|bold"
-                                    tools:ignore="RtlHardcoded"
-                                    tools:text="Channel" />
-
-                                <org.schabi.newpipe.views.NewPipeTextView
                                     android:id="@+id/detail_uploader_text_view"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
@@ -200,9 +186,26 @@
                                     android:marqueeRepeatLimit="marquee_forever"
                                     android:scrollHorizontally="true"
                                     android:singleLine="true"
-                                    android:textSize="@dimen/video_item_detail_uploader_text_size"
+                                    android:textColor="#ECECF1"
+                                    android:textSize="14sp"
+                                    android:textStyle="bold"
                                     tools:ignore="RtlHardcoded"
-                                    tools:text="Uploader" />
+                                    tools:text="Channel Name" />
+
+                                <org.schabi.newpipe.views.NewPipeTextView
+                                    android:id="@+id/detail_sub_channel_text_view"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:ellipsize="marquee"
+                                    android:fadingEdge="horizontal"
+                                    android:marqueeRepeatLimit="marquee_forever"
+                                    android:scrollHorizontally="true"
+                                    android:singleLine="true"
+                                    android:textColor="#A1A1AA"
+                                    android:textSize="12sp"
+                                    tools:ignore="RtlHardcoded"
+                                    tools:text="Subscriber count" />
 
                             </LinearLayout>
                         </LinearLayout>
@@ -225,10 +228,10 @@
                                 android:layout_marginTop="6dp"
                                 android:layout_marginBottom="6dp"
                                 android:lines="1"
-                                android:textAppearance="?android:attr/textAppearanceLarge"
-                                android:textSize="@dimen/video_item_detail_views_text_size"
+                                android:textColor="#A1A1AA"
+                                android:textSize="12sp"
                                 tools:ignore="RtlHardcoded"
-                                tools:text="2,816,821,505 views" />
+                                tools:text="2.8M views" />
 
                             <ImageView
                                 android:id="@+id/detail_thumbs_up_img_view"
@@ -236,7 +239,8 @@
                                 android:layout_height="@dimen/video_item_detail_like_image_height"
                                 android:layout_below="@id/detail_view_count_view"
                                 android:contentDescription="@string/detail_likes_img_view_description"
-                                android:src="@drawable/ic_thumb_up" />
+                                android:src="@drawable/ic_thumb_up"
+                                app:tint="#A1A1AA" />
 
                             <org.schabi.newpipe.views.NewPipeTextView
                                 android:id="@+id/detail_thumbs_up_count_view"
@@ -247,8 +251,8 @@
                                 android:layout_toRightOf="@id/detail_thumbs_up_img_view"
                                 android:gravity="center_vertical"
                                 android:lines="1"
-                                android:textAppearance="?android:attr/textAppearanceMedium"
-                                android:textSize="@dimen/video_item_detail_likes_text_size"
+                                android:textColor="#A1A1AA"
+                                android:textSize="12sp"
                                 tools:ignore="RtlHardcoded"
                                 tools:text="12M" />
 
@@ -261,6 +265,7 @@
                                 android:layout_toRightOf="@id/detail_thumbs_up_count_view"
                                 android:contentDescription="@string/detail_dislikes_img_view_description"
                                 android:src="@drawable/ic_thumb_down"
+                                app:tint="#A1A1AA"
                                 tools:ignore="RtlHardcoded" />
 
                             <org.schabi.newpipe.views.NewPipeTextView
@@ -272,8 +277,8 @@
                                 android:layout_toRightOf="@id/detail_thumbs_down_img_view"
                                 android:gravity="center_vertical"
                                 android:lines="1"
-                                android:textAppearance="?android:attr/textAppearanceMedium"
-                                android:textSize="@dimen/video_item_detail_likes_text_size"
+                                android:textColor="#A1A1AA"
+                                android:textSize="12sp"
                                 tools:ignore="RtlHardcoded"
                                 tools:text="10K" />
 
@@ -295,156 +300,104 @@
                         </RelativeLayout>
                     </RelativeLayout>
 
-                    <!-- CONTROLS -->
-                    <LinearLayout
-                        android:id="@+id/detail_control_panel"
+                    <!-- ACTION ROW: Horizontal scroll strip of frosted glass pills -->
+                    <HorizontalScrollView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:padding="@dimen/detail_control_padding">
+                        android:clipToPadding="false"
+                        android:overScrollMode="never"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="8dp"
+                        android:scrollbars="none">
 
-                        <org.schabi.newpipe.views.NewPipeTextView
-                            android:id="@+id/detail_controls_playlist_append"
-                            android:layout_width="@dimen/detail_control_width"
-                            android:layout_height="@dimen/detail_control_height"
-                            android:layout_gravity="center_vertical"
-                            android:layout_weight="1"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:clickable="true"
-                            android:contentDescription="@string/add_to_playlist"
-                            android:drawableTop="@drawable/ic_playlist_add"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:paddingVertical="@dimen/detail_control_padding"
-                            android:text="@string/controls_add_to_playlist_title"
-                            android:textSize="@dimen/detail_control_text_size" />
+                        <LinearLayout
+                            android:id="@+id/detail_control_panel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
 
-                        <org.schabi.newpipe.views.NewPipeTextView
-                            android:id="@+id/detail_controls_background"
-                            android:layout_width="@dimen/detail_control_width"
-                            android:layout_height="@dimen/detail_control_height"
-                            android:layout_gravity="center_vertical"
-                            android:layout_weight="1"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:clickable="true"
-                            android:contentDescription="@string/play_audio"
-                            android:drawableTop="@drawable/ic_headset"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:paddingVertical="@dimen/detail_control_padding"
-                            android:text="@string/controls_background_title"
-                            android:textSize="@dimen/detail_control_text_size" />
+                            <org.schabi.newpipe.views.NewPipeTextView
+                                android:id="@+id/detail_controls_playlist_append"
+                                style="@style/LiquidGlassActionPill"
+                                android:layout_marginEnd="8dp"
+                                android:contentDescription="@string/add_to_playlist"
+                                android:drawableStart="@drawable/ic_playlist_add"
+                                android:text="@string/controls_add_to_playlist_title"
+                                app:drawableTint="#F5F5F7" />
 
-                        <org.schabi.newpipe.views.NewPipeTextView
-                            android:id="@+id/detail_controls_popup"
-                            android:layout_width="@dimen/detail_control_width"
-                            android:layout_height="@dimen/detail_control_height"
-                            android:layout_gravity="center_vertical"
-                            android:layout_weight="1"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:clickable="true"
-                            android:contentDescription="@string/open_in_popup_mode"
-                            android:drawableTop="@drawable/ic_picture_in_picture"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:paddingVertical="@dimen/detail_control_padding"
-                            android:text="@string/controls_popup_title"
-                            android:textSize="@dimen/detail_control_text_size" />
+                            <org.schabi.newpipe.views.NewPipeTextView
+                                android:id="@+id/detail_controls_background"
+                                style="@style/LiquidGlassActionPill"
+                                android:layout_marginEnd="8dp"
+                                android:contentDescription="@string/play_audio"
+                                android:drawableStart="@drawable/ic_headset"
+                                android:text="@string/controls_background_title"
+                                app:drawableTint="#F5F5F7" />
 
-                        <org.schabi.newpipe.views.NewPipeTextView
-                            android:id="@+id/detail_controls_download"
-                            android:layout_width="@dimen/detail_control_width"
-                            android:layout_height="@dimen/detail_control_height"
-                            android:layout_gravity="center_vertical"
-                            android:layout_weight="1"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:clickable="true"
-                            android:contentDescription="@string/controls_download_desc"
-                            android:drawableTop="@drawable/ic_file_download"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:paddingVertical="@dimen/detail_control_padding"
-                            android:text="@string/download"
-                            android:textSize="@dimen/detail_control_text_size" />
+                            <org.schabi.newpipe.views.NewPipeTextView
+                                android:id="@+id/detail_controls_popup"
+                                style="@style/LiquidGlassActionPill"
+                                android:layout_marginEnd="8dp"
+                                android:contentDescription="@string/open_in_popup_mode"
+                                android:drawableStart="@drawable/ic_picture_in_picture"
+                                android:text="@string/controls_popup_title"
+                                app:drawableTint="#F5F5F7" />
 
-                    </LinearLayout>
+                            <org.schabi.newpipe.views.NewPipeTextView
+                                android:id="@+id/detail_controls_download"
+                                style="@style/LiquidGlassActionPill"
+                                android:layout_marginEnd="8dp"
+                                android:contentDescription="@string/controls_download_desc"
+                                android:drawableStart="@drawable/ic_file_download"
+                                android:text="@string/download"
+                                app:drawableTint="#F5F5F7" />
 
-                    <!-- SECONDARY CONTROLS -->
+                            <org.schabi.newpipe.views.NewPipeTextView
+                                android:id="@+id/detail_controls_share"
+                                style="@style/LiquidGlassActionPill"
+                                android:layout_marginEnd="8dp"
+                                android:contentDescription="@string/share"
+                                android:drawableStart="@drawable/ic_share"
+                                android:text="@string/share"
+                                app:drawableTint="#F5F5F7" />
+
+                            <org.schabi.newpipe.views.NewPipeTextView
+                                android:id="@+id/detail_controls_open_in_browser"
+                                style="@style/LiquidGlassActionPill"
+                                android:layout_marginEnd="8dp"
+                                android:contentDescription="@string/open_in_browser"
+                                android:drawableStart="@drawable/ic_language"
+                                android:text="@string/open_in_browser"
+                                app:drawableTint="#F5F5F7" />
+
+                            <org.schabi.newpipe.views.NewPipeTextView
+                                android:id="@+id/detail_controls_play_with_kodi"
+                                style="@style/LiquidGlassActionPill"
+                                android:layout_marginEnd="8dp"
+                                android:contentDescription="@string/play_with_kodi_title"
+                                android:drawableStart="@drawable/ic_cast"
+                                android:text="@string/play_with_kodi_title"
+                                app:drawableTint="#F5F5F7" />
+
+                            <org.schabi.newpipe.views.NewPipeTextView
+                                android:id="@+id/detail_controls_crash_the_player"
+                                style="@style/LiquidGlassActionPill"
+                                android:contentDescription="@string/crash_the_player"
+                                android:drawableStart="@drawable/ic_bug_report"
+                                android:text="@string/crash_the_player"
+                                android:visibility="gone"
+                                app:drawableTint="#F5F5F7" />
+
+                        </LinearLayout>
+                    </HorizontalScrollView>
+
+                    <!-- SECONDARY CONTROLS (for ViewBinding compatibility) -->
                     <LinearLayout
                         android:id="@+id/detail_secondary_control_panel"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:paddingHorizontal="@dimen/detail_control_padding"
-                        android:paddingBottom="@dimen/detail_control_padding"
-                        android:visibility="gone"
-                        tools:visibility="visible">
-
-                        <org.schabi.newpipe.views.NewPipeTextView
-                            android:id="@+id/detail_controls_share"
-                            android:layout_width="@dimen/detail_control_width"
-                            android:layout_height="@dimen/detail_control_height"
-                            android:layout_gravity="center_vertical"
-                            android:layout_weight="1"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:clickable="true"
-                            android:contentDescription="@string/share"
-                            android:drawableTop="@drawable/ic_share"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:paddingVertical="@dimen/detail_control_padding"
-                            android:text="@string/share"
-                            android:textSize="@dimen/detail_control_text_size" />
-
-                        <org.schabi.newpipe.views.NewPipeTextView
-                            android:id="@+id/detail_controls_open_in_browser"
-                            android:layout_width="@dimen/detail_control_width"
-                            android:layout_height="@dimen/detail_control_height"
-                            android:layout_gravity="center_vertical"
-                            android:layout_weight="1"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:clickable="true"
-                            android:contentDescription="@string/open_in_browser"
-                            android:drawableTop="@drawable/ic_language"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:paddingVertical="@dimen/detail_control_padding"
-                            android:text="@string/open_in_browser"
-                            android:textSize="@dimen/detail_control_text_size" />
-
-                        <org.schabi.newpipe.views.NewPipeTextView
-                            android:id="@+id/detail_controls_play_with_kodi"
-                            android:layout_width="@dimen/detail_control_width"
-                            android:layout_height="@dimen/detail_control_height"
-                            android:layout_gravity="center_vertical"
-                            android:layout_weight="1"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:clickable="true"
-                            android:contentDescription="@string/play_with_kodi_title"
-                            android:drawableTop="@drawable/ic_cast"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:paddingVertical="@dimen/detail_control_padding"
-                            android:text="@string/play_with_kodi_title"
-                            android:textSize="@dimen/detail_control_text_size" />
-
-                        <org.schabi.newpipe.views.NewPipeTextView
-                            android:id="@+id/detail_controls_crash_the_player"
-                            android:layout_width="@dimen/detail_control_width"
-                            android:layout_height="@dimen/detail_control_height"
-                            android:layout_gravity="center_vertical"
-                            android:layout_weight="1"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:clickable="true"
-                            android:contentDescription="@string/crash_the_player"
-                            android:drawableTop="@drawable/ic_bug_report"
-                            android:focusable="true"
-                            android:gravity="center"
-                            android:paddingVertical="@dimen/detail_control_padding"
-                            android:text="@string/crash_the_player"
-                            android:textSize="@dimen/detail_control_text_size" />
-
-                    </LinearLayout>
+                        android:visibility="gone" />
 
                     <View
                         android:id="@+id/detail_meta_info_separator"
@@ -484,13 +437,15 @@
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tab_layout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
             android:layout_gravity="bottom|center"
-            app:elevation="16dp"
-            app:tabBackground="@android:color/transparent"
+            android:background="@drawable/bg_liquid_glass_bottom_dock"
+            app:elevation="8dp"
             app:tabGravity="fill"
-            app:tabIconTint="?attr/colorAccent"
-            app:tabIndicatorGravity="top" />
+            app:tabIconTint="@color/selector_glass_tab_tint"
+            app:tabIndicatorColor="#FF3B5C"
+            app:tabIndicatorGravity="top"
+            app:tabIndicatorHeight="2dp" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
@@ -617,68 +572,119 @@
     <RelativeLayout
         android:id="@+id/overlay_layout"
         android:layout_width="match_parent"
-        android:layout_height="135dp"
-        android:layout_marginHorizontal="8dp"
-        android:layout_marginTop="8dp"
-        android:visibility="gone">
+        android:layout_height="60dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bg_mini_player_glass"
+        android:clickable="true"
+        android:focusable="true">
 
-        <ImageButton
-            android:id="@+id/overlay_thumbnail"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@android:color/transparent"
-            android:padding="0dp"
-            android:scaleType="centerCrop"
-            android:contentDescription="@string/play" />
+        <!-- 104dp x 58dp rounded video thumbnail on the left -->
+        <FrameLayout
+            android:id="@+id/overlay_thumbnail_container"
+            android:layout_width="104dp"
+            android:layout_height="58dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="8dp">
 
-        <!-- Metadata remains available to accessibility without recreating an audio strip. -->
+            <ImageView
+                android:id="@+id/overlay_thumbnail"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:contentDescription="@string/play" />
+        </FrameLayout>
+
+        <!-- Frosted glass Play/Pause and Close icon buttons on the right -->
+        <LinearLayout
+            android:id="@+id/overlay_buttons_layout"
+            android:layout_width="wrap_content"
+            android:layout_height="60dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingEnd="8dp">
+
+            <ImageButton
+                android:id="@+id/overlay_play_queue_button"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginEnd="4dp"
+                android:background="@drawable/bg_glass_icon_btn"
+                android:src="@drawable/ic_list"
+                android:visibility="gone"
+                android:contentDescription="@string/title_activity_play_queue"
+                app:tint="#FFFFFF" />
+
+            <ImageButton
+                android:id="@+id/overlay_play_pause_button"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_glass_icon_btn"
+                android:contentDescription="@string/play"
+                android:scaleType="center"
+                android:src="@drawable/ic_play_arrow"
+                app:tint="#FFFFFF" />
+
+            <ImageButton
+                android:id="@+id/overlay_close_button"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:background="@drawable/bg_glass_icon_btn"
+                android:contentDescription="@string/close"
+                android:scaleType="center"
+                android:src="@drawable/ic_close"
+                app:tint="#FFFFFF" />
+        </LinearLayout>
+
+        <!-- Marquee title (#F5F5F7) + channel subtitle (#A1A1AA) -->
         <LinearLayout
             android:id="@+id/overlay_metadata_layout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
+            android:layout_height="60dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_toEndOf="@id/overlay_thumbnail_container"
+            android:layout_toStartOf="@id/overlay_buttons_layout"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+
             <org.schabi.newpipe.views.NewPipeTextView
                 android:id="@+id/overlay_title_text_view"
-                android:layout_width="match_parent" android:layout_height="wrap_content" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="marquee"
+                android:fadingEdge="horizontal"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:scrollHorizontally="true"
+                android:singleLine="true"
+                android:textColor="#F5F5F7"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                tools:text="Video Title Here" />
+
             <org.schabi.newpipe.views.NewPipeTextView
                 android:id="@+id/overlay_channel_text_view"
-                android:layout_width="match_parent" android:layout_height="wrap_content" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="#A1A1AA"
+                android:textSize="11sp"
+                tools:text="Channel Name" />
         </LinearLayout>
 
-        <RelativeLayout
-            android:id="@+id/overlay_buttons_layout"
-            android:layout_width="match_parent"
-            android:layout_height="48dp">
-            <ImageButton
-                android:id="@+id/overlay_play_queue_button"
-                android:layout_width="48dp" android:layout_height="48dp"
-                android:visibility="gone"
-                android:contentDescription="@string/title_activity_play_queue" />
-            <ImageButton
-                android:id="@+id/overlay_play_pause_button"
-                android:layout_width="44dp" android:layout_height="44dp"
-                android:layout_alignParentStart="true" android:layout_margin="4dp"
-                android:background="@drawable/frost_duration_bg"
-                android:contentDescription="@string/pause"
-                android:scaleType="center" android:src="@drawable/ic_play_arrow"
-                android:tint="@android:color/white" />
-            <ImageButton
-                android:id="@+id/overlay_close_button"
-                android:layout_width="44dp" android:layout_height="44dp"
-                android:layout_alignParentEnd="true" android:layout_margin="4dp"
-                android:background="@drawable/frost_duration_bg"
-                android:contentDescription="@string/close"
-                android:scaleType="center" android:src="@drawable/ic_close"
-                android:tint="@android:color/white" />
-        </RelativeLayout>
-
+        <!-- 2dp glowing crimson progress bar (#FF3B5C) along bottom edge -->
         <ProgressBar
             android:id="@+id/overlay_progress_bar"
             style="@style/Widget.AppCompat.ProgressBar.Horizontal"
-            android:layout_width="match_parent" android:layout_height="2dp"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
             android:layout_alignParentBottom="true"
-            android:progressDrawable="@drawable/frost_mini_progress" />
+            android:progressDrawable="@drawable/bg_mini_player_progress" />
     </RelativeLayout>
 
 </FrameLayout>

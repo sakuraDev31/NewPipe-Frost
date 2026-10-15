@@ -1,113 +1,304 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:clipToPadding="false" android:paddingBottom="220dp" android:fillViewport="true">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="vertical" android:paddingHorizontal="16dp" android:paddingTop="16dp">
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="@string/rail_library" android:textColor="@color/glass_text_primary"
-            android:textSize="30sp" android:textStyle="bold" android:layout_marginBottom="12dp" />
-        <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
-            android:gravity="center_vertical" android:orientation="horizontal">
-            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:text="@string/hub_continue_watching" android:textSize="18sp"
-                android:textStyle="bold" android:textColor="@color/glass_text_primary" />
-            <TextView android:id="@+id/hub_history_all" android:layout_width="wrap_content"
-                android:layout_height="48dp" android:gravity="center" android:paddingHorizontal="12dp"
-                android:background="?attr/selectableItemBackground" android:clickable="true"
-                android:focusable="true" android:text="@string/hub_see_all"
-                android:textColor="@color/glass_text_secondary" android:textSize="13sp" />
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:fillViewport="true"
+    android:paddingBottom="120dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:text="@string/rail_library"
+            android:textColor="@color/liquid_glass_text_title"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <!-- Continue Watching Carousel Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/hub_continue_watching"
+                android:textColor="@color/liquid_glass_text_title"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/hub_history_all"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:paddingHorizontal="10dp"
+                android:text="@string/hub_see_all"
+                android:textColor="@color/liquid_glass_crimson_accent"
+                android:textSize="13sp"
+                android:textStyle="bold" />
         </LinearLayout>
-        <androidx.recyclerview.widget.RecyclerView android:id="@+id/hub_recent"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:clipToPadding="false" android:nestedScrollingEnabled="false" />
-        <TextView android:id="@+id/hub_recent_empty" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:paddingVertical="20dp"
-            android:text="@string/hub_history_empty" android:textColor="@color/glass_text_secondary"
+
+        <!-- Continue Watching Horizontal Snapping Carousel -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/hub_recent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipToPadding="false"
+            android:nestedScrollingEnabled="false"
+            android:orientation="horizontal"
+            android:scrollbars="none" />
+
+        <TextView
+            android:id="@+id/hub_recent_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingVertical="16dp"
+            android:text="@string/hub_history_empty"
+            android:textColor="@color/liquid_glass_text_secondary"
             android:textSize="14sp" />
-        <LinearLayout android:id="@+id/hub_history" android:layout_width="match_parent"
-            android:layout_height="72dp" android:layout_marginBottom="8dp"
-            android:background="@drawable/frost_card_bg" android:clipToOutline="true"
-            android:clickable="true" android:focusable="true"
-            android:foreground="?attr/selectableItemBackground" android:gravity="center_vertical"
-            android:orientation="horizontal" android:paddingHorizontal="16dp">
-            <ImageView android:layout_width="28dp" android:layout_height="28dp"
-                android:importantForAccessibility="no" android:src="@drawable/ic_history"
-                android:tint="@color/glass_text_primary" />
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:layout_marginStart="16dp" android:orientation="vertical">
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:text="@string/hub_history" android:textColor="@color/glass_text_primary"
-                    android:textSize="16sp" />
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:layout_marginTop="3dp" android:text="@string/hub_history_sub"
-                    android:textColor="@color/glass_text_secondary" android:textSize="12sp" />
+
+        <!-- WhatsApp iOS Grouped Inset Glass Card for Library Hub -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bg_whatsapp_inset_glass_group"
+            android:clipToOutline="true"
+            android:orientation="vertical">
+
+            <!-- Row 1: History -->
+            <LinearLayout
+                android:id="@+id/hub_history"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp">
+
+                <ImageView
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_history"
+                    app:tint="@color/liquid_glass_crimson_accent" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/hub_history"
+                        android:textColor="@color/liquid_glass_text_title"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/hub_history_badge"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/hub_history_sub"
+                        android:textColor="@color/liquid_glass_text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="›"
+                    android:textColor="@color/liquid_glass_text_secondary"
+                    android:textSize="22sp" />
             </LinearLayout>
-            <ImageView android:layout_width="20dp" android:layout_height="20dp"
-                android:importantForAccessibility="no" android:src="@drawable/ic_expand_more" android:rotation="270"
-                android:tint="@color/glass_text_secondary" />
-        </LinearLayout>
-        <LinearLayout android:id="@+id/hub_downloads" android:layout_width="match_parent"
-            android:layout_height="72dp" android:layout_marginBottom="8dp"
-            android:background="@drawable/frost_card_bg" android:clipToOutline="true"
-            android:clickable="true" android:focusable="true"
-            android:foreground="?attr/selectableItemBackground" android:gravity="center_vertical"
-            android:orientation="horizontal" android:paddingHorizontal="16dp">
-            <ImageView android:layout_width="28dp" android:layout_height="28dp"
-                android:importantForAccessibility="no" android:src="@drawable/ic_file_download"
-                android:tint="@color/glass_text_primary" />
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:layout_marginStart="16dp" android:orientation="vertical">
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:text="@string/hub_downloads" android:textColor="@color/glass_text_primary"
-                    android:textSize="16sp" />
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:layout_marginTop="3dp" android:text="@string/hub_downloads_sub"
-                    android:textColor="@color/glass_text_secondary" android:textSize="12sp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.6dp"
+                android:layout_marginStart="56dp"
+                android:background="#26FFFFFF" />
+
+            <!-- Row 2: Downloads -->
+            <LinearLayout
+                android:id="@+id/hub_downloads"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp">
+
+                <ImageView
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_file_download"
+                    app:tint="@color/liquid_glass_crimson_accent" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/hub_downloads"
+                        android:textColor="@color/liquid_glass_text_title"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/hub_downloads_badge"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/hub_downloads_sub"
+                        android:textColor="@color/liquid_glass_text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="›"
+                    android:textColor="@color/liquid_glass_text_secondary"
+                    android:textSize="22sp" />
             </LinearLayout>
-            <ImageView android:layout_width="20dp" android:layout_height="20dp"
-                android:importantForAccessibility="no" android:src="@drawable/ic_expand_more" android:rotation="270"
-                android:tint="@color/glass_text_secondary" />
-        </LinearLayout>
-        <LinearLayout android:id="@+id/hub_playlists" android:layout_width="match_parent"
-            android:layout_height="72dp" android:layout_marginBottom="8dp"
-            android:background="@drawable/frost_card_bg" android:clipToOutline="true"
-            android:clickable="true" android:focusable="true"
-            android:foreground="?attr/selectableItemBackground" android:gravity="center_vertical"
-            android:orientation="horizontal" android:paddingHorizontal="16dp">
-            <ImageView android:layout_width="28dp" android:layout_height="28dp"
-                android:importantForAccessibility="no" android:src="@drawable/ic_playlist_add"
-                android:tint="@color/glass_text_primary" />
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:layout_marginStart="16dp" android:orientation="vertical">
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:text="@string/hub_playlists" android:textColor="@color/glass_text_primary"
-                    android:textSize="16sp" />
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:layout_marginTop="3dp" android:text="@string/hub_playlists_sub"
-                    android:textColor="@color/glass_text_secondary" android:textSize="12sp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.6dp"
+                android:layout_marginStart="56dp"
+                android:background="#26FFFFFF" />
+
+            <!-- Row 3: Playlists -->
+            <LinearLayout
+                android:id="@+id/hub_playlists"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp">
+
+                <ImageView
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_playlist_add"
+                    app:tint="@color/liquid_glass_crimson_accent" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/hub_playlists"
+                        android:textColor="@color/liquid_glass_text_title"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/hub_playlists_badge"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/hub_playlists_sub"
+                        android:textColor="@color/liquid_glass_text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="›"
+                    android:textColor="@color/liquid_glass_text_secondary"
+                    android:textSize="22sp" />
             </LinearLayout>
-            <ImageView android:layout_width="20dp" android:layout_height="20dp"
-                android:importantForAccessibility="no" android:src="@drawable/ic_expand_more" android:rotation="270"
-                android:tint="@color/glass_text_secondary" />
         </LinearLayout>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
-            android:gravity="center_vertical" android:orientation="horizontal">
-            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:text="@string/hub_your_playlists" android:textSize="18sp"
-                android:textStyle="bold" android:textColor="@color/glass_text_primary" />
-            <TextView android:id="@+id/hub_playlists_all" android:layout_width="wrap_content"
-                android:layout_height="48dp" android:gravity="center" android:paddingHorizontal="12dp"
-                android:background="?attr/selectableItemBackground" android:clickable="true"
-                android:focusable="true" android:text="@string/hub_see_all"
-                android:textColor="@color/glass_text_secondary" android:textSize="13sp" />
+
+        <!-- Your Playlists Grid Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/hub_your_playlists"
+                android:textColor="@color/liquid_glass_text_title"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/hub_playlists_all"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:paddingHorizontal="10dp"
+                android:text="@string/hub_see_all"
+                android:textColor="@color/liquid_glass_crimson_accent"
+                android:textSize="13sp"
+                android:textStyle="bold" />
         </LinearLayout>
-        <androidx.recyclerview.widget.RecyclerView android:id="@+id/hub_saved_playlists"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
+
+        <!-- 2-column Playlists Grid -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/hub_saved_playlists"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:nestedScrollingEnabled="false" />
-        <TextView android:id="@+id/hub_playlists_empty" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:paddingVertical="20dp"
-            android:text="@string/hub_playlists_empty" android:textColor="@color/glass_text_secondary"
+
+        <TextView
+            android:id="@+id/hub_playlists_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingVertical="16dp"
+            android:text="@string/hub_playlists_empty"
+            android:textColor="@color/liquid_glass_text_secondary"
             android:textSize="14sp" />
+
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

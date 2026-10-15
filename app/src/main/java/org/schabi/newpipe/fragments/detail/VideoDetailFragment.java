@@ -97,10 +97,12 @@ import org.schabi.newpipe.ktx.AnimationType;
 import org.schabi.newpipe.local.dialog.PlaylistDialog;
 import org.schabi.newpipe.local.history.HistoryRecordManager;
 import org.schabi.newpipe.local.playlist.LocalPlaylistFragment;
+import org.schabi.newpipe.MainActivity;
 import org.schabi.newpipe.player.Player;
 import org.schabi.newpipe.player.PlayerIntentType;
 import org.schabi.newpipe.player.PlayerService;
 import org.schabi.newpipe.player.PlayerType;
+import org.schabi.newpipe.views.glass.PlayerSheetController;
 import org.schabi.newpipe.player.event.OnKeyDownListener;
 import org.schabi.newpipe.player.event.PlayerServiceExtendedEventListener;
 import org.schabi.newpipe.player.helper.PlayerHelper;
@@ -546,9 +548,9 @@ public final class VideoDetailFragment
 
         final View.OnClickListener overlayListener = v -> bottomSheetBehavior
                 .setState(BottomSheetBehavior.STATE_EXPANDED);
+        binding.overlayLayout.setOnClickListener(overlayListener);
         binding.overlayThumbnail.setOnClickListener(overlayListener);
         binding.overlayMetadataLayout.setOnClickListener(overlayListener);
-        binding.overlayButtonsLayout.setOnClickListener(overlayListener);
         binding.overlayCloseButton.setOnClickListener(v -> bottomSheetBehavior
                 .setState(BottomSheetBehavior.STATE_HIDDEN));
         binding.overlayPlayQueueButton.setOnClickListener(v -> openPlayQueue(requireContext()));
@@ -1851,10 +1853,13 @@ public final class VideoDetailFragment
         final int progressDifference = Math.abs(binding.positionView.getProgress()
                 - progressSeconds);
         binding.positionView.setMax(durationSeconds);
+        binding.overlayProgressBar.setMax(durationSeconds);
         if (progressDifference > 2) {
             binding.positionView.setProgressAnimated(progressSeconds);
+            binding.overlayProgressBar.setProgress(progressSeconds);
         } else {
             binding.positionView.setProgress(progressSeconds);
+            binding.overlayProgressBar.setProgress(progressSeconds);
         }
         final String position = Localization.getDurationString(progressSeconds);
         if (position != binding.detailPositionView.getText()) {
@@ -2452,11 +2457,27 @@ public final class VideoDetailFragment
         bottomSheetBehavior.setState(lastStableBottomSheetState);
         updateBottomSheetState(lastStableBottomSheetState);
 
-        final int peekHeight = getResources().getDimensionPixelSize(R.dimen.mini_player_height);
-        if (bottomSheetState != BottomSheetBehavior.STATE_HIDDEN) {
-            manageSpaceAtTheBottom(true);
-            bottomSheetBehavior.setPeekHeight(peekHeight);
-            setOverlayElementsClickable(bottomSheetState == BottomSheetBehavior.STATE_COLLAPSED);
+        final PlayerSheetController controller = activity instanceof MainActivity
+                ? ((MainActivity) activity).getPlayerSheetController()
+                : null;
+        if (controller != null) {
+            controller.updatePeekHeight();
+            if (binding != null) {
+                controller.bindPlayerViews(
+                        binding.overlayLayout,
+                        binding.detailThumbnailRootLayout,
+                        binding.overlayButtonsLayout,
+                        binding.detailMainContent,
+                        binding.overlayProgressBar
+                );
+            }
+        } else {
+            final int peekHeight = getResources().getDimensionPixelSize(R.dimen.mini_player_height);
+            if (bottomSheetState != BottomSheetBehavior.STATE_HIDDEN) {
+                manageSpaceAtTheBottom(true);
+                bottomSheetBehavior.setPeekHeight(peekHeight);
+                setOverlayElementsClickable(bottomSheetState == BottomSheetBehavior.STATE_COLLAPSED);
+            }
         }
 
         bottomSheetCallback = new BottomSheetBehavior.BottomSheetCallback() {
@@ -2476,7 +2497,12 @@ public final class VideoDetailFragment
                         moveFocusToMainFragment(false);
                         manageSpaceAtTheBottom(true);
 
-                        bottomSheetBehavior.setPeekHeight(peekHeight);
+                        if (controller != null) {
+                            controller.updatePeekHeight();
+                        } else {
+                            final int peekHeight = getResources().getDimensionPixelSize(R.dimen.mini_player_height);
+                            bottomSheetBehavior.setPeekHeight(peekHeight);
+                        }
                         // Disable click because overlay buttons located on top of buttons
                         // from the player
                         setOverlayElementsClickable(false);
@@ -2496,7 +2522,12 @@ public final class VideoDetailFragment
                         moveFocusToMainFragment(true);
                         manageSpaceAtTheBottom(true);
 
-                        bottomSheetBehavior.setPeekHeight(peekHeight);
+                        if (controller != null) {
+                            controller.updatePeekHeight();
+                        } else {
+                            final int peekHeight = getResources().getDimensionPixelSize(R.dimen.mini_player_height);
+                            bottomSheetBehavior.setPeekHeight(peekHeight);
+                        }
 
                         // Re-enable clicks
                         setOverlayElementsClickable(true);
@@ -2526,8 +2557,9 @@ public final class VideoDetailFragment
 
             @Override
             public void onSlide(@NonNull final View bottomSheet, final float slideOffset) {
-                if (binding != null) {
-                    // Resize only at stable states, not on every animation frame.
+                if (controller != null) {
+                    controller.handleSlide(slideOffset);
+                } else if (binding != null) {
                     binding.overlayLayout.setAlpha(1 - Math.max(0, slideOffset));
                 }
             }
@@ -2582,25 +2614,25 @@ public final class VideoDetailFragment
             return;
         }
         final boolean minimized = bottomSheetState == BottomSheetBehavior.STATE_COLLAPSED;
-        // Do not scroll/translate the video during sheet gestures. Only its bounds change
-        // at stable states, preserving the decoder, queue and native video surface.
         final FrameLayout holder = activity.findViewById(R.id.fragment_player_holder);
         final CoordinatorLayout.LayoutParams holderParams =
                 (CoordinatorLayout.LayoutParams) holder.getLayoutParams();
-        final int miniWidth = Math.min(
-                getResources().getDimensionPixelSize(R.dimen.mini_player_width),
-                getResources().getDisplayMetrics().widthPixels
-                        - DeviceUtils.dpToPx(40, requireContext()));
-        holderParams.width = minimized ? miniWidth + DeviceUtils.dpToPx(16, requireContext())
-                : ViewGroup.LayoutParams.MATCH_PARENT;
-        holderParams.gravity = minimized ? Gravity.RIGHT : Gravity.CENTER_HORIZONTAL;
-        holderParams.rightMargin = minimized ? DeviceUtils.dpToPx(8, requireContext()) : 0;
+        holderParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+        holderParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        holderParams.rightMargin = 0;
         holder.setLayoutParams(holderParams);
+
+        final PlayerSheetController controller = activity instanceof MainActivity
+                ? ((MainActivity) activity).getPlayerSheetController()
+                : null;
+        if (controller != null) {
+            controller.handleSlide(minimized ? 0f : 1f);
+        }
+
         binding.detailAmbientBackdrop.setVisibility(minimized ? View.GONE : View.VISIBLE);
         binding.overlayLayout.setVisibility(minimized ? View.VISIBLE : View.GONE);
-        // The video itself is the mini player's content; no second bottom strip or artwork.
         binding.miniBackdrop.setVisibility(View.GONE);
-        binding.overlayLayout.setAlpha(1);
+        binding.overlayLayout.setAlpha(minimized ? 1f : 0f);
         binding.getRoot().setBackgroundResource(minimized
                 ? android.R.color.transparent : R.drawable.frost_window_bg);
         binding.getRoot().setClickable(!minimized);
