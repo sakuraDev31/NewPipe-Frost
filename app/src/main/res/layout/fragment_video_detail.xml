@@ -573,7 +573,7 @@
         android:id="@+id/overlay_layout"
         android:layout_width="match_parent"
         android:layout_height="60dp"
-        android:layout_gravity="bottom"
+        android:layout_gravity="top"
         android:background="@drawable/bg_mini_player_glass"
         android:clickable="true"
         android:focusable="true">

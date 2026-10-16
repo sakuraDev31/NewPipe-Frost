@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.DialogInterface
 import android.os.Bundle
 import android.os.Parcelable
+import android.util.TypedValue
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuInflater
@@ -197,6 +200,20 @@ class SubscriptionFragment : BaseStateFragment<SubscriptionState>() {
     override fun initViews(rootView: View, savedInstanceState: Bundle?) {
         super.initViews(rootView, savedInstanceState)
         _binding = FragmentSubscriptionBinding.bind(rootView)
+
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, insets ->
+            val topInset = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top
+            val tv = TypedValue()
+            val actionBarHeight = if (context?.theme?.resolveAttribute(android.R.attr.actionBarSize, tv, true) == true) {
+                TypedValue.complexToDimensionPixelSize(tv.data, resources.displayMetrics)
+            } else {
+                (56 * resources.displayMetrics.density).toInt()
+            }
+            val totalTopPadding = topInset + actionBarHeight + (8 * resources.displayMetrics.density).toInt()
+            v.setPadding(v.paddingLeft, totalTopPadding, v.paddingRight, v.paddingBottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(rootView)
 
         groupAdapter.spanCount = if (SubscriptionViewModel.shouldUseGridForSubscription(requireContext())) getGridSpanCountChannels(context) else 1
         binding.itemsList.layoutManager = GridLayoutManager(requireContext(), groupAdapter.spanCount).apply {

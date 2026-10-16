@@ -2,6 +2,7 @@ package org.schabi.newpipe.views.glass
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
+import android.content.res.Configuration
 import android.content.Context
 import android.view.MotionEvent
 import android.view.VelocityTracker
@@ -21,13 +22,14 @@ import kotlin.math.hypot
  * Advanced 2D Draggable, Dockable & Expandable Physics Controller for the Liquid Glass Video Player.
  * - Docked strip sits strictly 10dp above @id/grounded_glass_dock (never overlaps behind bottom dock)
  * - Disables full-screen ExoPlayer controls when minimized; restores them past 0.6f expansion
- * - Free 2D dragging anywhere on screen with magnetic dock and edge snapping via SpringAnimation
+ * - Free 2D dragging anywhere on screen with arbitrary height and dock snapping via SpringAnimation
  * - Fluid connected morphing to full-screen (0.0f -> 1.0f)
  */
 open class LiquidGlassPlayerSheetController(
     private val activity: FragmentActivity,
     val playerSheet: View,
-    val groundedDock: View
+    val groundedDock: View,
+    val landscapeDuoPill: View? = null
 ) {
 
     val behavior: BottomSheetBehavior<View> = BottomSheetBehavior.from(playerSheet)
@@ -67,7 +69,7 @@ open class LiquidGlassPlayerSheetController(
 
     private fun setupBehavior() {
         behavior.isHideable = true
-        playerSheet.elevation = 16f * density
+        playerSheet.elevation = 24f * density
         updatePeekHeight()
 
         behavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
@@ -88,7 +90,14 @@ open class LiquidGlassPlayerSheetController(
      * RestY = ScreenHeight - GroundedDockHeight - MiniPlayerHeight - 10dp
      */
     fun updatePeekHeight() {
-        val dockHeightPx = if (groundedDock.height > 0) groundedDock.height else (64f * density).toInt()
+        val isDockVisible = groundedDock.visibility == View.VISIBLE
+        val dockHeightPx = if (isDockVisible && groundedDock.height > 0) {
+            groundedDock.height
+        } else if (isDockVisible) {
+            (64f * density).toInt()
+        } else {
+            0
+        }
         val totalPeekHeight = miniPlayerHeightPx + dockHeightPx + miniPlayerMarginBottomPx
         behavior.peekHeight = totalPeekHeight
     }
@@ -132,6 +141,7 @@ open class LiquidGlassPlayerSheetController(
 
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    target.parent?.requestDisallowInterceptTouchEvent(true)
                     downX = event.rawX
                     downY = event.rawY
                     initialTranslationX = playerSheet.translationX
@@ -147,12 +157,17 @@ open class LiquidGlassPlayerSheetController(
                     if (!isDraggingFloatingPiP && dist > touchSlop) {
                         isDraggingFloatingPiP = true
                         isFloatingDetached = true
-                        morphToFloatingPiP(true)
+                        target.parent?.requestDisallowInterceptTouchEvent(true)
                     }
 
                     if (isDraggingFloatingPiP) {
+                        val displayMetrics = activity.resources.displayMetrics
+                        val screenHeight = displayMetrics.heightPixels
+                        val dockHeight = if (groundedDock.height > 0) groundedDock.height else (64f * density).toInt()
+                        val maxUp = -(screenHeight - dockHeight - (100f * density).toInt()).toFloat()
+
                         playerSheet.translationX = initialTranslationX + dx
-                        playerSheet.translationY = initialTranslationY + dy
+                        playerSheet.translationY = (initialTranslationY + dy).coerceIn(maxUp, 0f)
                     }
                     true
                 }
@@ -166,16 +181,17 @@ open class LiquidGlassPlayerSheetController(
 
                     velocityTracker?.recycle()
                     velocityTracker = null
+                    target.parent?.requestDisallowInterceptTouchEvent(false)
 
                     if (!isDraggingFloatingPiP && totalDist < touchSlop) {
                         // 1. Single Tap: Expand player
                         expand()
-                    } else if (velY < -1500f && isDraggingFloatingPiP) {
+                    } else if (velY < -1500f && isDraggingFloatingPiP && totalDy < -40f * density) {
                         // 2. Quick Swipe Up: Expand player
                         expand()
                     } else if (isDraggingFloatingPiP) {
-                        // 3. Release: Magnetic Dock vs. Screen Edge Snapping
-                        snapToBestAnchor()
+                        // 3. Release: Magnetic Dock vs. Arbitrary Height Snapping
+                        snapToArbitraryPosition()
                     }
                     true
                 }
@@ -217,9 +233,9 @@ open class LiquidGlassPlayerSheetController(
     }
 
     /**
-     * Snaps playerSheet to either the bottom dock (if dropped near bottom) or to the nearest screen edge.
+     * Snaps playerSheet allowing placement at any arbitrary height, or snaps to dock when dragged near bottom.
      */
-    private fun snapToBestAnchor() {
+    private fun snapToArbitraryPosition() {
         val displayMetrics = activity.resources.displayMetrics
         val screenWidth = displayMetrics.widthPixels
         val screenHeight = displayMetrics.heightPixels
@@ -229,27 +245,20 @@ open class LiquidGlassPlayerSheetController(
         val currentTransX = playerSheet.translationX
 
         // If dropped near the bottom dock, snap cleanly back to docked strip
-        if (currentTransY >= -80f * density) {
+        if (currentTransY >= -20f * density) {
             snapWithSpring(0f, 0f) {
                 isFloatingDetached = false
-                morphToFloatingPiP(false)
             }
             return
         }
 
-        // Otherwise snap to safe screen boundary (Top-Left, Top-Right, Mid-Left, Mid-Right)
-        val pipWidth = floatingPipWidthPx
-        val pipHeight = floatingPipHeightPx
-        val safeMargin = (16f * density).toInt()
-        val safeTop = -screenHeight + dockHeight + (120f * density).toInt()
-        val safeBottom = -(dockHeight + (20f * density).toInt())
+        // Snap safely preserving the arbitrary height selected by user
+        val maxUp = -(screenHeight - dockHeight - (100f * density).toInt()).toFloat()
+        val targetY = currentTransY.coerceIn(maxUp, 0f)
 
-        val targetX = if (currentTransX + pipWidth / 2f < screenWidth / 2f) {
-            safeMargin.toFloat()
-        } else {
-            (screenWidth - pipWidth - safeMargin).toFloat()
-        }
-        val targetY = currentTransY.coerceIn(safeTop.toFloat(), safeBottom.toFloat())
+        // Keep horizontal translation within screen margins
+        val maxHorizontalOffset = (screenWidth * 0.40f)
+        val targetX = currentTransX.coerceIn(-maxHorizontalOffset, maxHorizontalOffset)
 
         snapWithSpring(targetX, targetY)
     }
@@ -290,6 +299,16 @@ open class LiquidGlassPlayerSheetController(
         // 1. Bottom Dock Translation: pushes dock off-screen downwards as player expands
         val dockHeight = if (groundedDock.height > 0) groundedDock.height.toFloat() else 64f * density
         groundedDock.translationY = p * dockHeight
+
+        // 1b. Landscape Duo Rail Translation: pushes rail off-screen to the right as player expands
+        landscapeDuoPill?.let { duo ->
+            val duoWidth = if (duo.width > 0) duo.width.toFloat() else 80f * density
+            duo.translationX = p * (duoWidth + 30f * density)
+            duo.alpha = (1f - p * 2f).coerceIn(0f, 1f)
+            if (p >= 0.4f) {
+                duo.visibility = View.GONE
+            }
+        }
 
         // 2. Corner Morph: interpolate top corner radius from 18dp at p=0 to 0dp at p=1
         val cornerRadiusPx = 18f * (1f - p) * density
@@ -355,6 +374,9 @@ open class LiquidGlassPlayerSheetController(
         when (newState) {
             BottomSheetBehavior.STATE_COLLAPSED -> {
                 groundedDock.translationY = 0f
+                if (activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                    landscapeDuoPill?.visibility = View.GONE
+                }
                 LiquidGlassHelper.updateTopCornerRadius(playerSheet, 18f * density)
                 miniControlsLayout?.apply {
                     alpha = 1f
@@ -371,6 +393,7 @@ open class LiquidGlassPlayerSheetController(
             BottomSheetBehavior.STATE_EXPANDED -> {
                 val dockHeight = if (groundedDock.height > 0) groundedDock.height.toFloat() else 64f * density
                 groundedDock.translationY = dockHeight
+                landscapeDuoPill?.visibility = View.GONE
                 playerSheet.translationX = 0f
                 playerSheet.translationY = 0f
                 LiquidGlassHelper.updateTopCornerRadius(playerSheet, 0f)

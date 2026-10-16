@@ -9,5 +9,6 @@ import androidx.fragment.app.FragmentActivity
 class PlayerSheetController(
     activity: FragmentActivity,
     playerSheet: View,
-    groundedDock: View
-) : LiquidGlassPlayerSheetController(activity, playerSheet, groundedDock)
+    groundedDock: View,
+    landscapeDuoPill: View? = null
+) : LiquidGlassPlayerSheetController(activity, playerSheet, groundedDock, landscapeDuoPill)

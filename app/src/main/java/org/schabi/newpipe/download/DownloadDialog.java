@@ -310,6 +310,12 @@ public class DownloadDialog extends DialogFragment
         dialogBinding.audioTrackSpinner.setOnItemSelectedListener(this);
         dialogBinding.videoAudioGroup.setOnCheckedChangeListener(this);
 
+        if (dialogBinding.toolbarLayout.headerNormalGroup != null) {
+            dialogBinding.toolbarLayout.headerNormalGroup.setVisibility(View.GONE);
+        }
+        if (dialogBinding.toolbarLayout.headerSearchEditGroup != null) {
+            dialogBinding.toolbarLayout.headerSearchEditGroup.setVisibility(View.GONE);
+        }
         initToolbar(dialogBinding.toolbarLayout.toolbar);
         setupDownloadOptions();
 

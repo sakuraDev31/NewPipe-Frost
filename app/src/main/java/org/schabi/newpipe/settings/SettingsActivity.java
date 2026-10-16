@@ -104,7 +104,6 @@ public class SettingsActivity extends AppCompatActivity implements
         binding.settingsToolbarLayout.btnHeaderNav.setOnClickListener(v -> onBackPressed());
         binding.settingsToolbarLayout.headerTitle.setText(R.string.settings);
         binding.settingsToolbarLayout.btnOpenSettings.setVisibility(View.GONE);
-        binding.settingsToolbarLayout.btnSearchPill.setOnClickListener(v -> setSearchActive(true));
         binding.settingsToolbarLayout.btnSearchBack.setOnClickListener(v -> setSearchActive(false));
 
         if (restored) {

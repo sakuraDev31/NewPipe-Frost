@@ -98,6 +98,15 @@ class AdaptiveGlassNavController(
         duoTabLibrary.setOnClickListener { selectTab(TAB_LIBRARY) }
     }
 
+    private var isPlayerActive: Boolean = false
+
+    fun setPlayerActive(active: Boolean) {
+        if (isPlayerActive != active) {
+            isPlayerActive = active
+            updateOrientationMode(activity.resources.configuration.orientation)
+        }
+    }
+
     fun onConfigurationChanged(newConfig: Configuration) {
         updateOrientationMode(newConfig.orientation)
     }
@@ -105,11 +114,15 @@ class AdaptiveGlassNavController(
     private fun updateOrientationMode(orientation: Int) {
         if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
             portraitDockContainer.visibility = View.GONE
-            landscapeDuoPill.visibility = View.VISIBLE
-            landscapeDuoPill.post { animateLandscapeIndicator(currentTab) }
+            if (isPlayerActive) {
+                landscapeDuoPill.visibility = View.GONE
+            } else {
+                landscapeDuoPill.visibility = View.VISIBLE
+                landscapeDuoPill.post { animateLandscapeIndicator(currentTab) }
+            }
         } else {
             landscapeDuoPill.visibility = View.GONE
-            portraitDockContainer.visibility = View.VISIBLE
+            portraitDockContainer.visibility = if (isPlayerActive) View.GONE else View.VISIBLE
             portraitDock.post { animatePortraitIndicator(currentTab) }
         }
     }

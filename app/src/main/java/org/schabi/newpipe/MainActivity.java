@@ -25,13 +25,19 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.SharedPreferences;
+import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.SpannableString;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.TextUtils;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -182,6 +188,10 @@ public class MainActivity extends AppCompatActivity {
         }
 
         setSupportActionBar(toolbarLayoutBinding.toolbar);
+        final ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) {
+            actionBar.setDisplayShowTitleEnabled(false);
+        }
         setupHeaderActions();
         setupGroundedDock();
         setupLiquidStatusBar();
@@ -288,8 +298,23 @@ public class MainActivity extends AppCompatActivity {
         playerSheetController = new PlayerSheetController(
                 this,
                 mainBinding.fragmentPlayerHolder,
-                mainBinding.groundedDockContainer
+                mainBinding.groundedDockContainer,
+                mainBinding.floatingVerticalDuoPill
         );
+
+        playerSheetController.setOnStateListener(state -> {
+            if (adaptiveNavController != null) {
+                if (state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED) {
+                    adaptiveNavController.setPlayerActive(true);
+                } else if (state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN) {
+                    adaptiveNavController.setPlayerActive(false);
+                } else if (state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED) {
+                    final boolean isLandscape = getResources().getConfiguration().orientation
+                            == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+                    adaptiveNavController.setPlayerActive(isLandscape);
+                }
+            }
+        });
 
         ViewCompat.setOnApplyWindowInsetsListener(mainBinding.groundedDockContainer, (v, insets) -> {
             final int bottom = insets.getInsets(
@@ -316,6 +341,8 @@ public class MainActivity extends AppCompatActivity {
      * and Search Edit Mode with real focusable EditText.
      */
     private void setupHeaderActions() {
+        setupBrandingTitle();
+
         // 1. Single Adaptive Left Navigation Button (Hamburger / Back)
         toolbarLayoutBinding.btnHeaderNav.setOnClickListener(v -> {
             final Fragment currentFragment = getSupportFragmentManager()
@@ -331,8 +358,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 2. Search Pill (Normal Mode) -> opens search edit mode
-        toolbarLayoutBinding.btnSearchPill.setOnClickListener(v -> enterSearchMode(""));
 
         // 3. Settings Gear Button
         toolbarLayoutBinding.btnOpenSettings.setOnClickListener(v -> {
@@ -379,6 +404,46 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void setupBrandingTitle() {
+        final CharSequence styledTitle = getFrostTubeFormattedTitle();
+        toolbarLayoutBinding.headerTitle.setText(styledTitle);
+
+        try {
+            if (mainBinding.navigation.getHeaderCount() > 0) {
+                final View headerView = mainBinding.navigation.getHeaderView(0);
+                if (headerView != null) {
+                    final android.widget.TextView drawerTitle =
+                            headerView.findViewById(R.id.drawer_header_newpipe_title);
+                    if (drawerTitle != null) {
+                        drawerTitle.setText(styledTitle);
+                    }
+                }
+            }
+        } catch (final Throwable ignored) {
+        }
+    }
+
+    public static CharSequence getFrostTubeFormattedTitle() {
+        final SpannableStringBuilder ssb = new SpannableStringBuilder();
+
+        final SpannableString frost = new SpannableString("FROST ");
+        // Silver glassy metallic tint
+        frost.setSpan(new ForegroundColorSpan(0xFFE2E8F0), 0, frost.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        frost.setSpan(new StyleSpan(Typeface.BOLD), 0, frost.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        final SpannableString tube = new SpannableString("TUBE");
+        // Vibrant red
+        tube.setSpan(new ForegroundColorSpan(0xFFFF284D), 0, tube.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        tube.setSpan(new StyleSpan(Typeface.BOLD), 0, tube.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        ssb.append(frost).append(tube);
+        return ssb;
+    }
+
     public void enterSearchMode(final String initialQuery) {
         toolbarLayoutBinding.headerNormalGroup.setVisibility(View.GONE);
         toolbarLayoutBinding.headerSearchEditGroup.setVisibility(View.VISIBLE);
@@ -392,6 +457,7 @@ public class MainActivity extends AppCompatActivity {
     public void exitSearchMode(final boolean popFragment) {
         toolbarLayoutBinding.headerSearchEditGroup.setVisibility(View.GONE);
         toolbarLayoutBinding.headerNormalGroup.setVisibility(View.VISIBLE);
+        toolbarLayoutBinding.headerTitle.setText(getFrostTubeFormattedTitle());
         toolbarLayoutBinding.searchEditText.clearFocus();
         hideKeyboard();
 

@@ -14,6 +14,9 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentStatePagerAdapterMenuWorkaround
 import androidx.preference.PreferenceManager
+import android.util.TypedValue
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import org.schabi.newpipe.BaseFragment
 import org.schabi.newpipe.R
 import org.schabi.newpipe.databinding.FragmentMainBinding
@@ -81,6 +84,20 @@ class MainFragment : BaseFragment() {
 
         setupTabs()
         setupFilterStrip()
+
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, insets ->
+            val topInset = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top
+            val tv = TypedValue()
+            val actionBarHeight = if (context?.theme?.resolveAttribute(android.R.attr.actionBarSize, tv, true) == true) {
+                TypedValue.complexToDimensionPixelSize(tv.data, resources.displayMetrics)
+            } else {
+                (56 * resources.displayMetrics.density).toInt()
+            }
+            val totalTopPadding = topInset + actionBarHeight + (8 * resources.displayMetrics.density).toInt()
+            v.setPadding(v.paddingLeft, totalTopPadding, v.paddingRight, v.paddingBottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(rootView)
     }
 
     private fun setupFilterStrip() {

@@ -1453,8 +1453,16 @@ public final class VideoDetailFragment
             final int bottomInset = insets == null ? 0 : insets.getInsets(
                     androidx.core.view.WindowInsetsCompat.Type.systemBars()).bottom;
             if (bottomSheetBehavior != null) {
-                bottomSheetBehavior.setPeekHeight(videoHeight
-                        + DeviceUtils.dpToPx(16, requireContext()) + bottomInset);
+                final org.schabi.newpipe.views.glass.PlayerSheetController controller =
+                        activity instanceof MainActivity
+                                ? ((MainActivity) activity).getPlayerSheetController()
+                                : null;
+                if (controller != null) {
+                    controller.updatePeekHeight();
+                } else {
+                    bottomSheetBehavior.setPeekHeight(videoHeight
+                            + DeviceUtils.dpToPx(16, requireContext()) + bottomInset);
+                }
             }
         }
         binding.detailThumbnailImageView.setLayoutParams(new FrameLayout.LayoutParams(

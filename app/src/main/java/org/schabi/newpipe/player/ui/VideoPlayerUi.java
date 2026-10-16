@@ -36,6 +36,7 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.SeekBar;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -214,6 +215,11 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
 
         binding.playbackSeekBar.setOnSeekBarChangeListener(this);
         binding.captionTextView.setOnClickListener(makeOnClickListener(this::onCaptionClicked));
+        binding.captionButton.setOnClickListener(makeOnClickListener(this::onCaptionToggleClicked));
+        binding.captionButton.setOnLongClickListener(v -> {
+            onCaptionClicked();
+            return true;
+        });
         binding.resizeTextView.setOnClickListener(makeOnClickListener(this::onResizeClicked));
         binding.playbackLiveSync.setOnClickListener(makeOnClickListener(player::seekToDefault));
 
@@ -290,6 +296,8 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
         binding.playbackSpeed.setOnClickListener(null);
         binding.playbackSeekBar.setOnSeekBarChangeListener(null);
         binding.captionTextView.setOnClickListener(null);
+        binding.captionButton.setOnClickListener(null);
+        binding.captionButton.setOnLongClickListener(null);
         binding.resizeTextView.setOnClickListener(null);
         binding.playbackLiveSync.setOnClickListener(null);
 
@@ -1241,6 +1249,7 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
             }
             player.getPrefs().edit()
                     .remove(context.getString(R.string.caption_user_set_key)).apply();
+            updateCaptionButtonState(false);
             return true;
         });
 
@@ -1268,6 +1277,7 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
                             .setRendererDisabled(textRendererIndex, false));
                     player.getPrefs().edit().putString(context.getString(
                             R.string.caption_user_set_key), captionLanguage).apply();
+                    updateCaptionButtonState(true);
                 }
                 return true;
             });
@@ -1415,6 +1425,78 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
         isSomePopupMenuVisible = true;
     }
 
+    private void onCaptionToggleClicked() {
+        if (DEBUG) {
+            Log.d(TAG, "onCaptionToggleClicked() called");
+        }
+        final int textRendererIndex = player.getCaptionRendererIndex();
+        if (textRendererIndex == RENDERER_UNAVAILABLE) {
+            return;
+        }
+
+        final boolean isCurrentlyDisabled = player.getTrackSelector().getParameters()
+                .getRendererDisabled(textRendererIndex);
+
+        if (!isCurrentlyDisabled) {
+            // Turn captions OFF
+            player.getTrackSelector().setParameters(player.getTrackSelector()
+                    .buildUponParameters().setRendererDisabled(textRendererIndex, true));
+            player.getPrefs().edit()
+                    .remove(context.getString(R.string.caption_user_set_key)).apply();
+            updateCaptionButtonState(false);
+            binding.captionTextView.setText(R.string.caption_none);
+            Toast.makeText(context, R.string.caption_none, Toast.LENGTH_SHORT).show();
+        } else {
+            // Turn captions ON
+            final Tracks currentTracks = player.getCurrentTracks();
+            final List<Tracks.Group> textTracks = currentTracks.getGroups().stream()
+                    .filter(g -> C.TRACK_TYPE_TEXT == g.getType())
+                    .collect(Collectors.toList());
+            if (textTracks.isEmpty()) {
+                return;
+            }
+
+            final String preferredLanguage = player.getPrefs()
+                    .getString(context.getString(R.string.caption_user_set_key), null);
+            final String selectedLang;
+            if (preferredLanguage != null) {
+                selectedLang = preferredLanguage;
+            } else {
+                final Optional<String> firstAvailable = textTracks.stream()
+                        .filter(g -> g.getMediaTrackGroup().length > 0)
+                        .map(g -> g.getMediaTrackGroup().getFormat(0).language)
+                        .filter(Objects::nonNull)
+                        .findFirst();
+                selectedLang = firstAvailable.orElse("");
+            }
+
+            player.getTrackSelector().setParameters(player.getTrackSelector()
+                    .buildUponParameters()
+                    .setPreferredTextLanguages(selectedLang,
+                            PlayerHelper.captionLanguageStemOf(selectedLang))
+                    .setPreferredTextRoleFlags(C.ROLE_FLAG_CAPTION)
+                    .setRendererDisabled(textRendererIndex, false));
+            if (!selectedLang.isEmpty()) {
+                player.getPrefs().edit().putString(
+                        context.getString(R.string.caption_user_set_key), selectedLang).apply();
+                binding.captionTextView.setText(selectedLang);
+            }
+            updateCaptionButtonState(true);
+            final String toastMsg = selectedLang.isEmpty()
+                    ? context.getString(R.string.caption_setting_title)
+                    : selectedLang;
+            Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void updateCaptionButtonState(final boolean isEnabled) {
+        if (binding.captionButton == null) {
+            return;
+        }
+        binding.captionButton.setAlpha(isEnabled ? 1.0f : 0.45f);
+        binding.captionButton.setColorFilter(isEnabled ? 0xFFFFFFFF : 0x80FFFFFF);
+    }
+
     public boolean isSomePopupMenuVisible() {
         return isSomePopupMenuVisible;
     }
@@ -1435,6 +1517,7 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
         if (getPlayer().getTrackSelector().getCurrentMappedTrackInfo() == null
                 || !trackTypeTextSupported) {
             binding.captionTextView.setVisibility(View.GONE);
+            binding.captionButton.setVisibility(View.GONE);
             return;
         }
 
@@ -1459,14 +1542,18 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
 
         // Build UI
         buildCaptionMenu(availableLanguages);
-        if (player.getTrackSelector().getParameters().getRendererDisabled(
-                player.getCaptionRendererIndex()) || selectedTracks.isEmpty()) {
+        final boolean isCaptionDisabled = player.getTrackSelector().getParameters().getRendererDisabled(
+                player.getCaptionRendererIndex()) || selectedTracks.isEmpty();
+        if (isCaptionDisabled) {
             binding.captionTextView.setText(R.string.caption_none);
+            updateCaptionButtonState(false);
         } else {
             binding.captionTextView.setText(selectedTracks.get().language);
+            updateCaptionButtonState(true);
         }
-        binding.captionTextView.setVisibility(
-                availableLanguages.isEmpty() ? View.GONE : View.VISIBLE);
+        final int visibility = availableLanguages.isEmpty() ? View.GONE : View.VISIBLE;
+        binding.captionTextView.setVisibility(visibility);
+        binding.captionButton.setVisibility(visibility);
     }
 
     @Override
