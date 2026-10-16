@@ -302,7 +302,7 @@ public class MainActivity extends AppCompatActivity {
                 mainBinding.floatingVerticalDuoPill
         );
 
-        playerSheetController.setOnStateListener(state -> {
+        playerSheetController.setOnStateChangeListener(state -> {
             if (adaptiveNavController != null) {
                 if (state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED) {
                     adaptiveNavController.setPlayerActive(true);
@@ -409,15 +409,9 @@ public class MainActivity extends AppCompatActivity {
         toolbarLayoutBinding.headerTitle.setText(styledTitle);
 
         try {
-            if (mainBinding.navigation.getHeaderCount() > 0) {
-                final View headerView = mainBinding.navigation.getHeaderView(0);
-                if (headerView != null) {
-                    final android.widget.TextView drawerTitle =
-                            headerView.findViewById(R.id.drawer_header_newpipe_title);
-                    if (drawerTitle != null) {
-                        drawerTitle.setText(styledTitle);
-                    }
-                }
+            final View drawerTitle = findViewById(R.id.drawer_header_newpipe_title);
+            if (drawerTitle instanceof android.widget.TextView) {
+                ((android.widget.TextView) drawerTitle).setText(styledTitle);
             }
         } catch (final Throwable ignored) {
         }

@@ -137,6 +137,8 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
     private PopupMenu audioTrackPopupMenu;
     protected PopupMenu playbackSpeedPopupMenu;
     private PopupMenu captionPopupMenu;
+    @Nullable
+    private Tracks latestTextTracks = null;
 
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -1448,7 +1450,17 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
             Toast.makeText(context, R.string.caption_none, Toast.LENGTH_SHORT).show();
         } else {
             // Turn captions ON
-            final Tracks currentTracks = player.getCurrentTracks();
+            final Tracks currentTracks;
+            if (latestTextTracks != null) {
+                currentTracks = latestTextTracks;
+            } else if (player.getExoPlayer() != null) {
+                currentTracks = player.getExoPlayer().getCurrentTracks();
+            } else {
+                currentTracks = null;
+            }
+            if (currentTracks == null) {
+                return;
+            }
             final List<Tracks.Group> textTracks = currentTracks.getGroups().stream()
                     .filter(g -> C.TRACK_TYPE_TEXT == g.getType())
                     .collect(Collectors.toList());
@@ -1510,6 +1522,7 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
 
     @Override
     public void onTextTracksChanged(@NonNull final Tracks currentTracks) {
+        this.latestTextTracks = currentTracks;
         super.onTextTracksChanged(currentTracks);
 
         final boolean trackTypeTextSupported = !currentTracks.containsType(C.TRACK_TYPE_TEXT)

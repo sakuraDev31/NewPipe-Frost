@@ -422,12 +422,20 @@ open class LiquidGlassPlayerSheetController(
         }
     }
 
+    fun interface OnStateChangeListener {
+        fun onStateChanged(state: Int)
+    }
+
     fun setOnSlideListener(listener: (Float) -> Unit) {
         this.customSlideCallback = listener
     }
 
     fun setOnStateListener(listener: (Int) -> Unit) {
         this.customStateCallback = listener
+    }
+
+    fun setOnStateChangeListener(listener: OnStateChangeListener) {
+        this.customStateCallback = { listener.onStateChanged(it) }
     }
 
     fun expand() {
