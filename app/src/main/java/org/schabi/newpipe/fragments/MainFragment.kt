@@ -33,7 +33,7 @@ import java.util.ArrayList
 /**
  * Main frontpage fragment hosting the home feeds without the legacy top tab bar.
  */
-class MainFragment : BaseFragment() {
+class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingListener {
 
     private var binding: FragmentMainBinding? = null
     private var pagerAdapter: SelectedTabsPagerAdapter? = null
@@ -85,19 +85,27 @@ class MainFragment : BaseFragment() {
         setupTabs()
         setupFilterStrip()
 
-        ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, insets ->
-            val topInset = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top
-            val tv = TypedValue()
-            val actionBarHeight = if (context?.theme?.resolveAttribute(android.R.attr.actionBarSize, tv, true) == true) {
-                TypedValue.complexToDimensionPixelSize(tv.data, resources.displayMetrics)
-            } else {
-                (56 * resources.displayMetrics.density).toInt()
-            }
-            val totalTopPadding = topInset + actionBarHeight + (8 * resources.displayMetrics.density).toInt()
-            v.setPadding(v.paddingLeft, totalTopPadding, v.paddingRight, v.paddingBottom)
-            insets
+        val ma = activity as? org.schabi.newpipe.MainActivity
+        val topPad = ma?.topHeaderTotalHeight ?: (56 * resources.displayMetrics.density).toInt()
+        val bottomPad = ma?.feedBottomContentPadding ?: (64 * resources.displayMetrics.density).toInt()
+        onFeedPaddingUpdated(topPad, bottomPad)
+    }
+
+    override fun onFeedPaddingUpdated(topPadding: Int, bottomPadding: Int) {
+        val b = binding ?: return
+        val filterStrip = b.homeFilterStrip
+        val lp = filterStrip.layoutParams as? ViewGroup.MarginLayoutParams
+        if (lp != null && lp.topMargin != topPadding) {
+            lp.topMargin = topPadding
+            filterStrip.layoutParams = lp
         }
-        ViewCompat.requestApplyInsets(rootView)
+        val chipsHeight = (48 * resources.displayMetrics.density).toInt()
+        val childTopPad = topPadding + chipsHeight
+        for (fragment in childFragmentManager.fragments) {
+            if (fragment is org.schabi.newpipe.util.LiquidFeedPaddingListener) {
+                fragment.onFeedPaddingUpdated(childTopPad, bottomPadding)
+            }
+        }
     }
 
     private fun setupFilterStrip() {

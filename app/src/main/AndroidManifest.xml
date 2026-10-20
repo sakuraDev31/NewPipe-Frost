@@ -41,9 +41,11 @@
         tools:ignore="AllowBackup">
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
             android:exported="true"
             android:label="@string/app_name"
-            android:launchMode="singleTask">
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -85,23 +87,27 @@
             android:name=".player.PlayQueueActivity"
             android:exported="false"
             android:label="@string/title_activity_play_queue"
-            android:launchMode="singleTask" />
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait" />
 
         <activity
             android:name=".views.glass.GlassPreviewActivity"
             android:exported="true"
             android:label="Frost Glass Preview"
-            android:theme="@style/DarkTheme" />
+            android:theme="@style/DarkTheme"
+            android:screenOrientation="portrait" />
 
         <activity
             android:name=".settings.SettingsActivity"
             android:exported="false"
-            android:label="@string/settings" />
+            android:label="@string/settings"
+            android:screenOrientation="portrait" />
 
         <activity
             android:name=".about.AboutActivity"
             android:exported="false"
-            android:label="@string/title_activity_about" />
+            android:label="@string/title_activity_about"
+            android:screenOrientation="portrait" />
 
         <service
             android:name=".local.feed.service.FeedLoadService"
@@ -140,7 +146,8 @@
             android:name=".download.DownloadActivity"
             android:exported="false"
             android:label="@string/app_name"
-            android:launchMode="singleTask" />
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait" />
 
         <service android:name="us.shandian.giga.service.DownloadManagerService"
             android:foregroundServiceType="dataSync" />

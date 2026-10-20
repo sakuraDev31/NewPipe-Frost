@@ -41,7 +41,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_gravity="bottom|center_horizontal"
-            android:elevation="24dp"
+            android:elevation="20dp"
             app:behavior_hideable="true"
             app:behavior_peekHeight="0dp"
             app:layout_behavior="org.schabi.newpipe.player.gesture.CustomBottomSheetBehavior" />
@@ -52,7 +52,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
-            android:elevation="16dp"
+            android:elevation="28dp"
             app:glassBlurRadius="28dp"
             app:glassCornerRadius="0dp"
             app:glassStrokeWidth="0.8dp"
@@ -65,9 +65,10 @@
                 <!-- Sliding glass indicator behind active tab (spring-animated) -->
                 <View
                     android:id="@+id/dock_active_indicator"
-                    android:layout_width="64dp"
-                    android:layout_height="36dp"
-                    android:layout_gravity="center_vertical"
+                    android:layout_width="56dp"
+                    android:layout_height="32dp"
+                    android:layout_gravity="top"
+                    android:layout_marginTop="5dp"
                     android:background="@drawable/bg_liquid_glass_active_pill"
                     android:visibility="invisible" />
 

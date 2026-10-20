@@ -4,9 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#090A0F"
-    android:clipToPadding="false"
-    android:paddingTop="104dp"
-    android:paddingBottom="140dp">
+    android:clipToPadding="false">
 
     <!-- Top Channel Avatar Dock and Filter Strip -->
     <include

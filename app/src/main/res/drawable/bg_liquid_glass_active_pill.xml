@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Refractive white translucent fill + 1dp stroke -->
+    <!-- Refractive liquid glass fill + subtle border -->
     <item>
         <shape android:shape="rectangle">
-            <corners android:radius="999dp" />
-            <solid android:color="#2EFFFFFF" />
+            <corners android:radius="16dp" />
+            <solid android:color="#24FFFFFF" />
             <stroke
                 android:width="1dp"
-                android:color="#66FFFFFF" />
+                android:color="#4DFFFFFF" />
         </shape>
     </item>
 
-    <!-- Subtle crimson tint overlay (#33FF3B5C) -->
+    <!-- Subtle frosted crimson accent overlay -->
     <item>
         <shape android:shape="rectangle">
-            <corners android:radius="999dp" />
-            <solid android:color="#33FF3B5C" />
+            <corners android:radius="16dp" />
+            <solid android:color="#26FF3B5C" />
         </shape>
     </item>
 </layer-list>

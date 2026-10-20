@@ -372,6 +372,16 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         searchBinding.suggestionsList.setAdapter(suggestionListAdapter);
         // animations are just strange and useless, since the suggestions keep changing too much
         searchBinding.suggestionsList.setItemAnimator(null);
+        searchBinding.suggestionsList.setClipToPadding(false);
+        if (activity instanceof MainActivity) {
+            final MainActivity ma = (MainActivity) activity;
+            searchBinding.suggestionsList.setPadding(
+                    searchBinding.suggestionsList.getPaddingLeft(),
+                    ma.getTopHeaderTotalHeight(),
+                    searchBinding.suggestionsList.getPaddingRight(),
+                    ma.getFeedBottomContentPadding()
+            );
+        }
         new ItemTouchHelper(new ItemTouchHelper.Callback() {
             @Override
             public int getMovementFlags(@NonNull final RecyclerView recyclerView,
@@ -405,6 +415,20 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
             if (searchClear == null) {
                 searchClear = searchToolbarContainer.findViewById(R.id.toolbar_search_clear);
             }
+        }
+    }
+
+    @Override
+    public void onFeedPaddingUpdated(final int topPadding, final int bottomPadding) {
+        super.onFeedPaddingUpdated(topPadding, bottomPadding);
+        if (searchBinding != null && searchBinding.suggestionsList != null) {
+            searchBinding.suggestionsList.setClipToPadding(false);
+            searchBinding.suggestionsList.setPadding(
+                    searchBinding.suggestionsList.getPaddingLeft(),
+                    topPadding,
+                    searchBinding.suggestionsList.getPaddingRight(),
+                    bottomPadding
+            );
         }
     }
 

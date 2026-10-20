@@ -60,7 +60,7 @@ import org.schabi.newpipe.util.ThemeHelper.getGridSpanCountChannels
 import org.schabi.newpipe.util.external_communication.ShareUtils
 import org.schabi.newpipe.util.image.ImageStrategy
 
-class SubscriptionFragment : BaseStateFragment<SubscriptionState>() {
+class SubscriptionFragment : BaseStateFragment<SubscriptionState>(), org.schabi.newpipe.util.LiquidFeedPaddingListener {
     private var _binding: FragmentSubscriptionBinding? = null
     private val binding get() = _binding!!
 
@@ -201,19 +201,10 @@ class SubscriptionFragment : BaseStateFragment<SubscriptionState>() {
         super.initViews(rootView, savedInstanceState)
         _binding = FragmentSubscriptionBinding.bind(rootView)
 
-        ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, insets ->
-            val topInset = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top
-            val tv = TypedValue()
-            val actionBarHeight = if (context?.theme?.resolveAttribute(android.R.attr.actionBarSize, tv, true) == true) {
-                TypedValue.complexToDimensionPixelSize(tv.data, resources.displayMetrics)
-            } else {
-                (56 * resources.displayMetrics.density).toInt()
-            }
-            val totalTopPadding = topInset + actionBarHeight + (8 * resources.displayMetrics.density).toInt()
-            v.setPadding(v.paddingLeft, totalTopPadding, v.paddingRight, v.paddingBottom)
-            insets
-        }
-        ViewCompat.requestApplyInsets(rootView)
+        val ma = activity as? org.schabi.newpipe.MainActivity
+        val topPad = ma?.topHeaderTotalHeight ?: (56 * resources.displayMetrics.density).toInt()
+        val bottomPad = ma?.feedBottomContentPadding ?: (64 * resources.displayMetrics.density).toInt()
+        onFeedPaddingUpdated(topPad, bottomPad)
 
         groupAdapter.spanCount = if (SubscriptionViewModel.shouldUseGridForSubscription(requireContext())) getGridSpanCountChannels(context) else 1
         binding.itemsList.layoutManager = GridLayoutManager(requireContext(), groupAdapter.spanCount).apply {
@@ -232,6 +223,23 @@ class SubscriptionFragment : BaseStateFragment<SubscriptionState>() {
 
         setupInitialLayout()
         setupAvatarDockAndFilters()
+    }
+
+    override fun onFeedPaddingUpdated(topPadding: Int, bottomPadding: Int) {
+        val b = _binding ?: return
+        val dock = b.channelAvatarDock.root
+        val lp = dock.layoutParams as? ViewGroup.MarginLayoutParams
+        if (lp != null && lp.topMargin != topPadding) {
+            lp.topMargin = topPadding
+            dock.layoutParams = lp
+        }
+        b.itemsList.clipToPadding = false
+        b.itemsList.setPadding(
+            b.itemsList.paddingLeft,
+            b.itemsList.paddingTop,
+            b.itemsList.paddingRight,
+            bottomPadding
+        )
     }
 
     private fun setupAvatarDockAndFilters() {

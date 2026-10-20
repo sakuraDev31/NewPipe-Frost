@@ -25,6 +25,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
 import android.graphics.Typeface;
@@ -222,17 +223,57 @@ public class MainActivity extends AppCompatActivity {
         MigrationManager.showUserInfoIfPresent(this);
     }
 
+    private int systemBarTopInset = 0;
+
+    public int getSystemBarTopInset() {
+        return systemBarTopInset;
+    }
+
+    public int getTopHeaderTotalHeight() {
+        if (toolbarLayoutBinding != null && toolbarLayoutBinding.getRoot().getHeight() > 0) {
+            return toolbarLayoutBinding.getRoot().getHeight();
+        }
+        return systemBarTopInset + org.schabi.newpipe.util.DeviceUtils.dpToPx(56, this);
+    }
+
+    public int getFeedBottomContentPadding() {
+        final int dockHeight = (mainBinding != null && mainBinding.groundedDockContainer != null
+                && mainBinding.groundedDockContainer.getHeight() > 0)
+                ? mainBinding.groundedDockContainer.getHeight()
+                : org.schabi.newpipe.util.DeviceUtils.dpToPx(64, this);
+        final boolean miniVisible = playerSheetController != null && playerSheetController.isCollapsed();
+        final int miniHeight = miniVisible
+                ? getResources().getDimensionPixelSize(R.dimen.mini_player_height)
+                : 0;
+        return dockHeight + miniHeight;
+    }
+
+    public void updateFeedsPadding() {
+        final int topPad = getTopHeaderTotalHeight();
+        final int bottomPad = getFeedBottomContentPadding();
+        final FragmentManager fm = getSupportFragmentManager();
+        for (final Fragment fragment : fm.getFragments()) {
+            if (fragment instanceof org.schabi.newpipe.util.LiquidFeedPaddingListener) {
+                ((org.schabi.newpipe.util.LiquidFeedPaddingListener) fragment)
+                        .onFeedPaddingUpdated(topPad, bottomPad);
+            }
+        }
+    }
+
     private void setupLiquidStatusBar() {
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
         final var controller = androidx.core.view.WindowCompat.getInsetsController(
                 getWindow(), mainBinding.getRoot());
-        controller.setAppearanceLightStatusBars(false);
+        if (controller != null) {
+            controller.setAppearanceLightStatusBars(false);
+        }
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(
                 toolbarLayoutBinding.getRoot(), (view, insets) -> {
-                    final int top = insets.getInsets(
+                    systemBarTopInset = insets.getInsets(
                             androidx.core.view.WindowInsetsCompat.Type.systemBars()).top;
-                    view.setPadding(0, top, 0, 0);
+                    view.setPadding(0, systemBarTopInset, 0, 0);
+                    view.post(this::updateFeedsPadding);
                     return insets;
                 });
         androidx.core.view.ViewCompat.requestApplyInsets(mainBinding.getRoot());
@@ -314,6 +355,7 @@ public class MainActivity extends AppCompatActivity {
                     adaptiveNavController.setPlayerActive(isLandscape);
                 }
             }
+            updateFeedsPadding();
         });
 
         ViewCompat.setOnApplyWindowInsetsListener(mainBinding.groundedDockContainer, (v, insets) -> {
@@ -324,15 +366,22 @@ public class MainActivity extends AppCompatActivity {
                 if (playerSheetController != null) {
                     playerSheetController.updatePeekHeight();
                 }
+                updateFeedsPadding();
             });
             return insets;
         });
 
         getSupportFragmentManager().addOnBackStackChangedListener(() -> {
             updateHeaderNavigationIcon();
+            if (playerSheetController == null || !playerSheetController.isExpanded()) {
+                if (getRequestedOrientation() != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+                    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                }
+            }
             if (adaptiveNavController != null) {
                 adaptiveNavController.syncWithActiveFragment();
             }
+            updateFeedsPadding();
         });
     }
 
@@ -511,9 +560,19 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onConfigurationChanged(@NonNull final Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+        final boolean isLand = newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE;
+        final boolean isPlayerExpanded = playerSheetController != null && playerSheetController.isExpanded();
+        if (isLand && isPlayerExpanded) {
+            mainBinding.floatingVerticalDuoPill.setVisibility(View.GONE);
+        } else if (!isPlayerExpanded) {
+            if (getRequestedOrientation() != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            }
+        }
         if (adaptiveNavController != null) {
             adaptiveNavController.onConfigurationChanged(newConfig);
         }
+        updateFeedsPadding();
     }
 
     @Override
@@ -531,6 +590,13 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         Localization.initPrettyTime(Localization.resolvePrettyTime());
         super.onResume();
+
+        if (playerSheetController == null || !playerSheetController.isExpanded()) {
+            if (getRequestedOrientation() != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            }
+        }
+        updateFeedsPadding();
 
         if (sharedPreferences.getBoolean(Constants.KEY_THEME_CHANGE, false)) {
             if (DEBUG) {
@@ -589,12 +655,29 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "onBackPressed() called");
         }
 
+        // 1. Restore portrait orientation when navigating back from any landscape view
+        if (org.schabi.newpipe.util.DeviceUtils.isLandscape(this)) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        }
+
+        // 2. Delegate to active video player first so it can exit fullscreen / handle internal stack
+        final Fragment fragmentPlayer = getSupportFragmentManager()
+                .findFragmentById(R.id.fragment_player_holder);
+        if (fragmentPlayer instanceof BackPressable) {
+            if (((BackPressable) fragmentPlayer).onBackPressed()) {
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                return;
+            }
+        }
+
+        // 3. If player is expanded, collapse it to compact mini-player card above dock
         if (playerSheetController != null && playerSheetController.isExpanded()) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
             playerSheetController.collapse();
             return;
         }
 
-        // In case bottomSheet is not visible on the screen or collapsed we can assume that the user
+        // 4. In case bottomSheet is not visible on the screen or collapsed we can assume that the user
         // interacts with a fragment inside fragment_holder so all back presses should be
         // handled by it
         if (bottomSheetHiddenOrCollapsed()) {
@@ -613,11 +696,10 @@ public class MainActivity extends AppCompatActivity {
                 // and no other CommentRepliesFragments are on top of the back stack
                 // to show the top level comments again.
                 openDetailFragmentFromCommentReplies(fm, false);
+                return;
             }
 
         } else {
-            final Fragment fragmentPlayer = getSupportFragmentManager()
-                    .findFragmentById(R.id.fragment_player_holder);
             // If current fragment implements BackPressable (i.e. can/wanna handle back press)
             // delegate the back press to it
             if (fragmentPlayer instanceof BackPressable) {
@@ -629,7 +711,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        if (getSupportFragmentManager().getBackStackEntryCount() == 1) {
+        if (getSupportFragmentManager().getBackStackEntryCount() <= 1) {
             finish();
         } else {
             super.onBackPressed();

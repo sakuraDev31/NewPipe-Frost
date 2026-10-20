@@ -341,7 +341,11 @@ public final class VideoDetailFragment
             @Override
             public void onChange(final boolean selfChange) {
                 if (activity != null && !globalScreenOrientationLocked(activity)) {
-                    activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+                    if (isPlayerAvailable() && isFullscreen()) {
+                        activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                    } else {
+                        activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                    }
                 }
             }
         };
@@ -749,8 +753,8 @@ public final class VideoDetailFragment
             Log.d(TAG, "onBackPressed() called");
         }
 
-        // If we are in fullscreen mode just exit from it via first back press
-        if (isFullscreen()) {
+        // If we are in fullscreen mode or in landscape, exit via first back press
+        if (isFullscreen() || (activity != null && DeviceUtils.isLandscape(activity))) {
             if (!DeviceUtils.isTablet(activity)) {
                 player.pause();
             }
@@ -1423,10 +1427,9 @@ public final class VideoDetailFragment
 
     private void setHeightThumbnail(final int newHeight, final DisplayMetrics metrics) {
         final boolean minimized = lastStableBottomSheetState == BottomSheetBehavior.STATE_COLLAPSED;
-        final int miniWidth = Math.min(
-                getResources().getDimensionPixelSize(R.dimen.mini_player_width),
-                metrics.widthPixels - DeviceUtils.dpToPx(40, requireContext()));
-        final int videoHeight = minimized ? miniWidth * 9 / 16 : newHeight;
+        final int miniWidth = DeviceUtils.dpToPx(96, requireContext());
+        final int miniHeight = DeviceUtils.dpToPx(52, requireContext());
+        final int videoHeight = minimized ? miniHeight : newHeight;
         final int videoWidth;
         if (minimized) {
             videoWidth = miniWidth;
@@ -1439,15 +1442,15 @@ public final class VideoDetailFragment
                 videoWidth, videoHeight);
         if (minimized) {
             videoParams.topMargin = DeviceUtils.dpToPx(8, requireContext());
-            videoParams.setMarginStart(DeviceUtils.dpToPx(8, requireContext()));
+            videoParams.setMarginStart(DeviceUtils.dpToPx(16, requireContext()));
         }
         binding.detailThumbnailRootLayout.setLayoutParams(videoParams);
         binding.detailThumbnailRootLayout.setBackgroundResource(minimized
-                ? R.drawable.frost_mini_player_bg : android.R.color.black);
+                ? android.R.color.transparent : android.R.color.black);
         binding.detailThumbnailRootLayout.setClipToOutline(minimized);
         if (minimized) {
             final ViewGroup.LayoutParams overlayParams = binding.overlayLayout.getLayoutParams();
-            overlayParams.height = videoHeight;
+            overlayParams.height = getResources().getDimensionPixelSize(R.dimen.mini_player_height);
             binding.overlayLayout.setLayoutParams(overlayParams);
             final var insets = androidx.core.view.ViewCompat.getRootWindowInsets(binding.getRoot());
             final int bottomInset = insets == null ? 0 : insets.getInsets(
@@ -1460,8 +1463,8 @@ public final class VideoDetailFragment
                 if (controller != null) {
                     controller.updatePeekHeight();
                 } else {
-                    bottomSheetBehavior.setPeekHeight(videoHeight
-                            + DeviceUtils.dpToPx(16, requireContext()) + bottomInset);
+                    bottomSheetBehavior.setPeekHeight(
+                            getResources().getDimensionPixelSize(R.dimen.mini_player_height) + bottomInset);
                 }
             }
         }
@@ -1573,12 +1576,9 @@ public final class VideoDetailFragment
             toggleFullscreenIfInFullscreenMode();
         }
 
-        // This will show systemUI and pause the player.
-        // User can tap on Play button and video will be in fullscreen mode again
-        // Note for tablet: trying to avoid orientation changes since it's not easy
-        // to physically rotate the tablet every time
+        // Non-player screens must always be displayed in portrait
         if (activity != null && !DeviceUtils.isTablet(activity)) {
-            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         }
     }
 
@@ -2497,6 +2497,9 @@ public final class VideoDetailFragment
                     case BottomSheetBehavior.STATE_HIDDEN:
                         moveFocusToMainFragment(true);
                         manageSpaceAtTheBottom(true);
+                        if (activity != null && !DeviceUtils.isTablet(activity)) {
+                            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                        }
 
                         bottomSheetBehavior.setPeekHeight(0);
                         cleanUp();
@@ -2529,6 +2532,9 @@ public final class VideoDetailFragment
                     case BottomSheetBehavior.STATE_COLLAPSED:
                         moveFocusToMainFragment(true);
                         manageSpaceAtTheBottom(true);
+                        if (activity != null && !DeviceUtils.isTablet(activity)) {
+                            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                        }
 
                         if (controller != null) {
                             controller.updatePeekHeight();

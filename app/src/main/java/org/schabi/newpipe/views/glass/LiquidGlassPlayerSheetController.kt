@@ -58,8 +58,9 @@ open class LiquidGlassPlayerSheetController(
     private var isDraggingFloatingPiP = false
     private var isFloatingDetached = false
 
-    private val miniPlayerHeightPx: Int get() = (62f * density).toInt()
-    private val miniPlayerMarginBottomPx: Int get() = (10f * density).toInt()
+    private val miniPlayerHeightPx: Int
+        get() = activity.resources.getDimensionPixelSize(org.schabi.newpipe.R.dimen.mini_player_height)
+    private val miniPlayerMarginBottomPx: Int get() = 0
     private val floatingPipWidthPx: Int get() = (260f * density).toInt()
     private val floatingPipHeightPx: Int get() = (68f * density).toInt()
 
@@ -69,7 +70,7 @@ open class LiquidGlassPlayerSheetController(
 
     private fun setupBehavior() {
         behavior.isHideable = true
-        playerSheet.elevation = 24f * density
+        playerSheet.elevation = 20f * density
         updatePeekHeight()
 
         behavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
@@ -98,7 +99,7 @@ open class LiquidGlassPlayerSheetController(
         } else {
             0
         }
-        val totalPeekHeight = miniPlayerHeightPx + dockHeightPx + miniPlayerMarginBottomPx
+        val totalPeekHeight = miniPlayerHeightPx + dockHeightPx
         behavior.peekHeight = totalPeekHeight
     }
 
@@ -299,6 +300,7 @@ open class LiquidGlassPlayerSheetController(
         // 1. Bottom Dock Translation: pushes dock off-screen downwards as player expands
         val dockHeight = if (groundedDock.height > 0) groundedDock.height.toFloat() else 64f * density
         groundedDock.translationY = p * dockHeight
+        playerSheet.elevation = (20f + 12f * p) * density
 
         // 1b. Landscape Duo Rail Translation: pushes rail off-screen to the right as player expands
         landscapeDuoPill?.let { duo ->
@@ -345,8 +347,8 @@ open class LiquidGlassPlayerSheetController(
     private fun updateVideoSurfaceInterpolation(p: Float) {
         val surface = videoSurfaceContainer ?: return
         val parentWidth = if (playerSheet.width > 0) playerSheet.width else activity.resources.displayMetrics.widthPixels
-        val miniWidthPx = (104f * density).toInt()
-        val miniHeightPx = (54f * density).toInt()
+        val miniWidthPx = (96f * density).toInt()
+        val miniHeightPx = (52f * density).toInt()
 
         val fullWidthPx = parentWidth
         val fullHeightPx = (220f * density).toInt()
@@ -354,8 +356,8 @@ open class LiquidGlassPlayerSheetController(
         val currentW = (miniWidthPx + p * (fullWidthPx - miniWidthPx)).toInt()
         val currentH = (miniHeightPx + p * (fullHeightPx - miniHeightPx)).toInt()
 
-        val currentMarginStart = ((1f - p) * 8f * density).toInt()
-        val currentMarginTop = ((1f - p) * 1f * density).toInt()
+        val currentMarginStart = ((1f - p) * 16f * density).toInt()
+        val currentMarginTop = ((1f - p) * 8f * density).toInt()
 
         val lp = surface.layoutParams
         if (lp is ViewGroup.MarginLayoutParams) {
@@ -374,9 +376,8 @@ open class LiquidGlassPlayerSheetController(
         when (newState) {
             BottomSheetBehavior.STATE_COLLAPSED -> {
                 groundedDock.translationY = 0f
-                if (activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                    landscapeDuoPill?.visibility = View.GONE
-                }
+                playerSheet.elevation = 20f * density
+                landscapeDuoPill?.visibility = View.GONE
                 LiquidGlassHelper.updateTopCornerRadius(playerSheet, 18f * density)
                 miniControlsLayout?.apply {
                     alpha = 1f
@@ -393,6 +394,7 @@ open class LiquidGlassPlayerSheetController(
             BottomSheetBehavior.STATE_EXPANDED -> {
                 val dockHeight = if (groundedDock.height > 0) groundedDock.height.toFloat() else 64f * density
                 groundedDock.translationY = dockHeight
+                playerSheet.elevation = 32f * density
                 landscapeDuoPill?.visibility = View.GONE
                 playerSheet.translationX = 0f
                 playerSheet.translationY = 0f
@@ -413,6 +415,7 @@ open class LiquidGlassPlayerSheetController(
             }
             BottomSheetBehavior.STATE_HIDDEN -> {
                 groundedDock.translationY = 0f
+                playerSheet.elevation = 20f * density
                 playerSheet.translationX = 0f
                 playerSheet.translationY = 0f
             }
