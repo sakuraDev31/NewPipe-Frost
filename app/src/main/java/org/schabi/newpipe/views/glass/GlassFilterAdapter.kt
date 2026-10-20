@@ -25,8 +25,12 @@ class GlassFilterAdapter(
     override fun onBindViewHolder(holder: FilterViewHolder, position: Int) {
         val category = filterCategories[position]
         holder.bind(category, position == selectedIndex) {
+            val clickedIndex = holder.bindingAdapterPosition
+            if (clickedIndex == RecyclerView.NO_POSITION) {
+                return@bind
+            }
             val previousIndex = selectedIndex
-            selectedIndex = holder.bindingAdapterPosition
+            selectedIndex = clickedIndex
             if (previousIndex != selectedIndex) {
                 notifyItemChanged(previousIndex)
                 notifyItemChanged(selectedIndex)

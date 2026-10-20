@@ -77,7 +77,7 @@
                 android:shadowDx="0"
                 android:shadowDy="1"
                 android:shadowRadius="4"
-                android:text="FROST TUBE"
+                android:text="FROSTTUBE"
                 android:textColor="#E2E8F0"
                 android:textSize="18sp"
                 android:textStyle="bold" />

@@ -549,7 +549,7 @@ public class MainActivity extends AppCompatActivity {
     public static CharSequence getFrostTubeFormattedTitle() {
         final SpannableStringBuilder ssb = new SpannableStringBuilder();
 
-        final SpannableString frost = new SpannableString("FROST ");
+        final SpannableString frost = new SpannableString("FROST");
         // Silver glassy metallic tint
         frost.setSpan(new ForegroundColorSpan(0xFFE2E8F0), 0, frost.length(),
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -602,6 +602,9 @@ public class MainActivity extends AppCompatActivity {
     private void updateHeaderNavigationIcon() {
         final Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
         final boolean isRoot = isRootTabFragment(fragment);
+        // Home uses the FrostTube mark as its leading affordance; keep the hamburger only
+        // on secondary pages where it is actually a back/navigation control.
+        toolbarLayoutBinding.btnHeaderNav.setVisibility(isRoot ? View.GONE : View.VISIBLE);
 
         if (isRoot) {
             toolbarLayoutBinding.btnHeaderNavIcon.setImageResource(R.drawable.ic_menu);

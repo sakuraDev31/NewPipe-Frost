@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentStatePagerAdapterMenuWorkaround
 import androidx.preference.PreferenceManager
+import androidx.recyclerview.widget.RecyclerView
 import org.schabi.newpipe.BaseFragment
 import org.schabi.newpipe.R
 import org.schabi.newpipe.databinding.FragmentMainBinding
@@ -96,6 +97,7 @@ class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingLi
             override fun onPageSelected(position: Int) {
                 refreshingFragment = null
                 binding?.swipeRefreshLayout?.isRefreshing = false
+                bindFilterScrollListener()
             }
         })
         bound.swipeRefreshLayout.setOnRefreshListener {
@@ -155,22 +157,13 @@ class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingLi
         val b = binding ?: return
         val categories = listOf("All", "Live", "Chemistry", "Gaming", "News", "Music", "Podcasts")
         val adapter = org.schabi.newpipe.views.glass.GlassFilterAdapter(categories) { category, index ->
-            if (index == 0) {
-                if (b.pager.currentItem == 0) {
-                    refreshCurrentTab()
-                } else {
-                    b.pager.currentItem = 0
-                }
+            // Chips are feed filters, not search shortcuts. Keep the user on Home and
+            // refresh the connected feed instead of opening a SearchFragment.
+            if (b.pager.currentItem != 0) {
+                b.pager.currentItem = 0
+                b.pager.post { refreshCurrentTab() }
             } else {
-                try {
-                    NavigationHelper.openSearchFragment(
-                        parentFragmentManager,
-                        ServiceHelper.getSelectedServiceId(requireContext()),
-                        category
-                    )
-                } catch (e: Exception) {
-                    // ignore
-                }
+                refreshCurrentTab()
             }
         }
         b.homeFilterStrip.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(
@@ -179,6 +172,31 @@ class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingLi
             false
         )
         b.homeFilterStrip.adapter = adapter
+        bindFilterScrollListener()
+    }
+
+    private fun bindFilterScrollListener() {
+        val b = binding ?: return
+        val list = pagerAdapter?.primaryFragment?.view
+            ?.findViewById<RecyclerView>(R.id.items_list) ?: return
+        list.clearOnScrollListeners()
+        list.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                when {
+                    dy > 4 -> hideFilterStrip(b.homeFilterStrip)
+                    dy < -4 || !recyclerView.canScrollVertically(-1) -> showFilterStrip(b.homeFilterStrip)
+                }
+            }
+        })
+    }
+
+    private fun hideFilterStrip(strip: View) {
+        strip.animate().translationY(-strip.height.toFloat()).alpha(0f).setDuration(180).start()
+    }
+
+    private fun showFilterStrip(strip: View) {
+        strip.animate().translationY(0f).alpha(1f).setDuration(180).start()
     }
 
     override fun onResume() {
