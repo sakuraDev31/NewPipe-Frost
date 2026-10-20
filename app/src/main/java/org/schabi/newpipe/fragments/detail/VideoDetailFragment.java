@@ -921,7 +921,7 @@ public final class VideoDetailFragment
 
     private void updateTabs(@NonNull final StreamInfo info) {
         final String description = info.getDescription() == null
-                ? "" : info.getDescription().getContent();
+                ? "" : info.getDescription().content();
         binding.detailDescriptionPreview.setText(isEmpty(description)
                 ? getString(R.string.description_tab_description)
                 : androidx.core.text.HtmlCompat.fromHtml(description,
