@@ -1014,10 +1014,6 @@ public final class VideoDetailFragment
     }
 
     private void openPopupPlayer(final boolean append) {
-        if (!PermissionHelper.isPopupEnabledElseAsk(activity)) {
-            return;
-        }
-
         // See UI changes while remote playQueue changes
         if (!isPlayerAvailable()) {
             playerHolder.startService(false, this);

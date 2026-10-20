@@ -3,17 +3,13 @@ package org.schabi.newpipe.settings;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.text.format.DateUtils;
 import android.widget.Toast;
 
 import androidx.preference.ListPreference;
 
-import com.google.android.material.snackbar.Snackbar;
-
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.util.ListHelper;
-import org.schabi.newpipe.util.PermissionHelper;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -29,23 +25,7 @@ public class VideoAudioSettingsFragment extends BasePreferenceFragment {
         updateResolutionOptions();
         listener = (sharedPreferences, key) -> {
 
-            // on M and above, if user chooses to minimise to popup player on exit
-            // and the app doesn't have display over other apps permission,
-            // show a snackbar to let the user give permission
-            if (getString(R.string.minimize_on_exit_key).equals(key)) {
-                final String newSetting = sharedPreferences.getString(key, null);
-                if (newSetting != null
-                        && newSetting.equals(getString(R.string.minimize_on_exit_popup_key))
-                        && !Settings.canDrawOverlays(getContext())) {
-
-                    Snackbar.make(getListView(), R.string.permission_display_over_apps,
-                            Snackbar.LENGTH_INDEFINITE)
-                            .setAction(R.string.settings, view ->
-                                    PermissionHelper.checkSystemAlertWindowPermission(getContext()))
-                            .show();
-
-                }
-            } else if (getString(R.string.use_inexact_seek_key).equals(key)) {
+            if (getString(R.string.use_inexact_seek_key).equals(key)) {
                 updateSeekOptions();
             } else if (getString(R.string.show_higher_resolutions_key).equals(key)) {
                 updateResolutionOptions();

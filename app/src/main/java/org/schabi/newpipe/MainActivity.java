@@ -21,6 +21,7 @@
 package org.schabi.newpipe;
 
 import android.app.AlertDialog;
+import android.app.PictureInPictureParams;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -38,6 +39,7 @@ import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.util.Log;
+import android.util.Rational;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -78,6 +80,7 @@ import org.schabi.newpipe.frost.LibraryHubFragment;
 import org.schabi.newpipe.local.feed.notifications.NotificationWorker;
 import org.schabi.newpipe.local.subscription.SubscriptionFragment;
 import org.schabi.newpipe.player.Player;
+import org.schabi.newpipe.player.PlayerType;
 import org.schabi.newpipe.player.event.OnKeyDownListener;
 import org.schabi.newpipe.player.helper.PlayerHolder;
 import org.schabi.newpipe.player.playqueue.PlayQueue;
@@ -290,6 +293,23 @@ public class MainActivity extends AppCompatActivity {
         sharedPrefEditor.putBoolean(KEY_IS_IN_BACKGROUND, true).apply();
         Log.d(TAG, "App moved to background");
     }
+
+    @Override
+    public void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                && !isInPictureInPictureMode()
+                && PlayerHolder.getInstance().isPlaying()
+                && PlayerHolder.getInstance().getType() == PlayerType.MAIN) {
+            final PictureInPictureParams.Builder params = new PictureInPictureParams.Builder()
+                    .setAspectRatio(new Rational(16, 9));
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                params.setAutoEnterEnabled(true);
+            }
+            enterPictureInPictureMode(params.build());
+        }
+    }
+
     public PlayerSheetController getPlayerSheetController() {
         return playerSheetController;
     }

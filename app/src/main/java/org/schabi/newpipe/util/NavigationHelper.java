@@ -144,17 +144,9 @@ public final class NavigationHelper {
     public static void playOnPopupPlayer(final Context context,
                                          final PlayQueue queue,
                                          final boolean resumePlayback) {
-        if (!PermissionHelper.isPopupEnabledElseAsk(context)) {
-            return;
-        }
-
-        Toast.makeText(context, R.string.popup_playing_toast, Toast.LENGTH_SHORT).show();
-
-        final var intent = getPlayerIntent(context, PlayerService.class, queue,
-                PlayerIntentType.AllOthers)
-                .putExtra(Player.PLAYER_TYPE, PlayerType.POPUP)
-                .putExtra(Player.RESUME_PLAYBACK, resumePlayback);
-        ContextCompat.startForegroundService(context, intent);
+        Toast.makeText(context, R.string.picture_in_picture_playing_toast, Toast.LENGTH_SHORT)
+                .show();
+        playOnMainPlayer(context, queue, true);
     }
 
     public static void playOnBackgroundPlayer(final Context context,
@@ -174,9 +166,8 @@ public final class NavigationHelper {
     public static void enqueueOnPlayer(final Context context,
                                        final PlayQueue queue,
                                        final PlayerType playerType) {
-        if (playerType == PlayerType.POPUP && !PermissionHelper.isPopupEnabledElseAsk(context)) {
-            return;
-        }
+        final PlayerType effectivePlayerType = playerType == PlayerType.POPUP
+                ? PlayerType.MAIN : playerType;
 
         Toast.makeText(context, R.string.enqueued, Toast.LENGTH_SHORT).show();
 
@@ -190,7 +181,7 @@ public final class NavigationHelper {
         final Intent intent = getPlayerIntent(context, PlayerService.class, queue,
                 PlayerIntentType.Enqueue)
                 .putExtra(Player.RESUME_PLAYBACK, false)
-                .putExtra(Player.PLAYER_TYPE, playerType);
+                .putExtra(Player.PLAYER_TYPE, effectivePlayerType);
         ContextCompat.startForegroundService(context, intent);
     }
 

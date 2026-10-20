@@ -616,12 +616,6 @@ public class RouterActivity extends AppCompatActivity {
                     .apply();
         }
 
-        if (selectedChoiceKey.equals(getString(R.string.popup_player_key))
-                && !PermissionHelper.isPopupEnabledElseAsk(this)) {
-            finish();
-            return;
-        }
-
         if (selectedChoiceKey.equals(getString(R.string.download_key))) {
             if (PermissionHelper.checkStoragePermissions(this,
                     PermissionHelper.DOWNLOAD_DIALOG_REQUEST_CODE)) {
