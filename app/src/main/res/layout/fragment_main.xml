@@ -5,10 +5,17 @@
     android:background="#090A0F"
     android:clipToPadding="false">
 
-    <androidx.viewpager.widget.ViewPager
-        android:id="@+id/pager"
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipe_refresh_layout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
+
+        <androidx.viewpager.widget.ViewPager
+            android:id="@+id/pager"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <!-- Sticky Frosted Glass Filter Strip -->
     <androidx.recyclerview.widget.RecyclerView

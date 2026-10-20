@@ -85,10 +85,36 @@ class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingLi
         setupTabs()
         setupFilterStrip()
 
+        bound.swipeRefreshLayout.setColorSchemeColors(
+            androidx.core.content.ContextCompat.getColor(requireContext(), R.color.liquid_glass_crimson_accent)
+        )
+        bound.swipeRefreshLayout.setProgressBackgroundColorSchemeColor(0xFF141724.toInt())
+        bound.swipeRefreshLayout.setOnRefreshListener {
+            refreshCurrentTab()
+        }
+
         val ma = activity as? org.schabi.newpipe.MainActivity
         val topPad = ma?.topHeaderTotalHeight ?: (56 * resources.displayMetrics.density).toInt()
         val bottomPad = ma?.feedBottomContentPadding ?: (64 * resources.displayMetrics.density).toInt()
         onFeedPaddingUpdated(topPad, bottomPad)
+    }
+
+    fun refreshCurrentTab() {
+        val b = binding ?: return
+        b.swipeRefreshLayout.isRefreshing = true
+        val currentTag = "android:switcher:" + b.pager.id + ":" + b.pager.currentItem
+        val currentFragment = childFragmentManager.findFragmentByTag(currentTag)
+        if (currentFragment is BaseStateFragment<*>) {
+            currentFragment.reloadContent()
+        }
+        for (fragment in childFragmentManager.fragments) {
+            if (fragment is BaseStateFragment<*>) {
+                fragment.reloadContent()
+            }
+        }
+        b.swipeRefreshLayout.postDelayed({
+            binding?.swipeRefreshLayout?.isRefreshing = false
+        }, 1200)
     }
 
     override fun onFeedPaddingUpdated(topPadding: Int, bottomPadding: Int) {
@@ -101,6 +127,11 @@ class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingLi
         }
         val chipsHeight = (48 * resources.displayMetrics.density).toInt()
         val childTopPad = topPadding + chipsHeight
+        b.swipeRefreshLayout.setProgressViewOffset(
+            true,
+            childTopPad - (16 * resources.displayMetrics.density).toInt(),
+            childTopPad + (48 * resources.displayMetrics.density).toInt()
+        )
         for (fragment in childFragmentManager.fragments) {
             if (fragment is org.schabi.newpipe.util.LiquidFeedPaddingListener) {
                 fragment.onFeedPaddingUpdated(childTopPad, bottomPadding)
@@ -113,7 +144,11 @@ class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingLi
         val categories = listOf("All", "Live", "Chemistry", "Gaming", "News", "Music", "Podcasts")
         val adapter = org.schabi.newpipe.views.glass.GlassFilterAdapter(categories) { category, index ->
             if (index == 0) {
-                b.pager.currentItem = 0
+                if (b.pager.currentItem == 0) {
+                    refreshCurrentTab()
+                } else {
+                    b.pager.currentItem = 0
+                }
             } else {
                 try {
                     NavigationHelper.openSearchFragment(

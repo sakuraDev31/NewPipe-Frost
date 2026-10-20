@@ -21,6 +21,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
 import android.database.ContentObserver;
 import android.graphics.Color;
 import android.graphics.Bitmap;
@@ -1429,7 +1430,7 @@ public final class VideoDetailFragment
         final boolean minimized = lastStableBottomSheetState == BottomSheetBehavior.STATE_COLLAPSED;
         final int miniWidth = DeviceUtils.dpToPx(96, requireContext());
         final int miniHeight = DeviceUtils.dpToPx(52, requireContext());
-        final int videoHeight = minimized ? miniHeight : newHeight;
+        final int videoHeight = minimized ? miniHeight : (isFullscreen() ? FrameLayout.LayoutParams.MATCH_PARENT : newHeight);
         final int videoWidth;
         if (minimized) {
             videoWidth = miniWidth;
@@ -1443,6 +1444,11 @@ public final class VideoDetailFragment
         if (minimized) {
             videoParams.topMargin = DeviceUtils.dpToPx(8, requireContext());
             videoParams.setMarginStart(DeviceUtils.dpToPx(16, requireContext()));
+        } else if (isFullscreen()) {
+            videoParams.topMargin = 0;
+            videoParams.bottomMargin = 0;
+            videoParams.setMarginStart(0);
+            videoParams.setMarginEnd(0);
         }
         binding.detailThumbnailRootLayout.setLayoutParams(videoParams);
         binding.detailThumbnailRootLayout.setBackgroundResource(minimized
@@ -2046,6 +2052,10 @@ public final class VideoDetailFragment
             showSystemUi();
         }
 
+        if (binding.detailMainContent != null) {
+            binding.detailMainContent.setVisibility(fullscreen ? View.GONE : View.VISIBLE);
+        }
+
         if (binding.relatedItemsLayout != null) {
             if (showRelatedItems) {
                 binding.relatedItemsLayout.setVisibility(fullscreen ? View.GONE : View.VISIBLE);
@@ -2055,6 +2065,7 @@ public final class VideoDetailFragment
         }
         scrollToTop();
 
+        setHeightThumbnail();
         tryAddVideoPlayerView();
     }
 
@@ -2066,8 +2077,8 @@ public final class VideoDetailFragment
         // Just turn on fullscreen mode in landscape orientation
         // or portrait & unlocked global orientation
         final boolean isLandscape = DeviceUtils.isLandscape(requireContext());
-        if (DeviceUtils.isTv(activity) || DeviceUtils.isTablet(activity)
-                && (!globalScreenOrientationLocked(activity) || isLandscape)) {
+        if (DeviceUtils.isTv(activity) || (DeviceUtils.isTablet(activity)
+                && (!globalScreenOrientationLocked(activity) || isLandscape))) {
             player.UIs().get(MainPlayerUi.class).ifPresent(MainPlayerUi::toggleFullscreen);
             return;
         }
@@ -2077,6 +2088,32 @@ public final class VideoDetailFragment
                 : ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
 
         activity.setRequestedOrientation(newOrientation);
+
+        if (isPlayerAvailable() && player.videoPlayerSelected()) {
+            final Optional<MainPlayerUi> playerUi = player.UIs().get(MainPlayerUi.class);
+            if (!isLandscape && !isFullscreen() && !player.isAudioOnly()) {
+                playerUi.ifPresent(MainPlayerUi::toggleFullscreen);
+            } else if (isLandscape && isFullscreen()) {
+                playerUi.ifPresent(MainPlayerUi::toggleFullscreen);
+            }
+        }
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull final Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        final boolean isLandscape = newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE;
+        if (isPlayerAvailable() && player.videoPlayerSelected()) {
+            final Optional<MainPlayerUi> playerUi = player.UIs().get(MainPlayerUi.class);
+            if (isLandscape && !isFullscreen() && !player.isAudioOnly()) {
+                playerUi.ifPresent(MainPlayerUi::toggleFullscreen);
+            } else if (!isLandscape && isFullscreen()
+                    && playerUi.map(ui -> !ui.isVerticalVideo()).orElse(true)
+                    && !DeviceUtils.isTablet(activity)) {
+                playerUi.ifPresent(MainPlayerUi::toggleFullscreen);
+            }
+        }
+        setHeightThumbnail();
     }
 
     /*

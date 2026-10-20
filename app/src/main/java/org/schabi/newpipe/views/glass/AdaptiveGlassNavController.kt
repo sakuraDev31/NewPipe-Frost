@@ -129,6 +129,12 @@ class AdaptiveGlassNavController(
 
     fun selectTab(tabIndex: Int, updateDock: Boolean = true) {
         if (currentTab == tabIndex && isCurrentTabDisplayed(tabIndex)) {
+            if (tabIndex == TAB_HOME) {
+                val currentFrag = fm.findFragmentById(R.id.fragment_holder)
+                if (currentFrag is MainFragment) {
+                    currentFrag.refreshCurrentTab()
+                }
+            }
             return
         }
         currentTab = tabIndex

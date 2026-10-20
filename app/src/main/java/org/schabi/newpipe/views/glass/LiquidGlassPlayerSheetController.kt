@@ -325,15 +325,21 @@ open class LiquidGlassPlayerSheetController(
         }
 
         // 4. Full Content Sheet Fade-In:
-        // Fade in full metadata & comments over p in [0.2, 1.0]
-        val fullAlpha = ((p - 0.2f) / 0.8f).coerceIn(0f, 1f)
-        fullContentLayout?.apply {
-            alpha = fullAlpha
-            visibility = if (p <= 0.2f) View.GONE else View.VISIBLE
+        val isLandscape = activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        if (isLandscape) {
+            fullContentLayout?.visibility = View.GONE
+            landscapeDuoPill?.visibility = View.GONE
+        } else {
+            // Fade in full metadata & comments over p in [0.2, 1.0]
+            val fullAlpha = ((p - 0.2f) / 0.8f).coerceIn(0f, 1f)
+            fullContentLayout?.apply {
+                alpha = fullAlpha
+                visibility = if (p <= 0.2f) View.GONE else View.VISIBLE
+            }
         }
 
         // 5. Video Surface Scaling:
-        // Scale video surface from 104dp x 54dp (left-aligned) at p=0 to full width x 220dp at p=1
+        // Scale video surface from 96dp x 52dp (left-aligned) at p=0 to full width x 220dp at p=1 (or fullscreen in landscape)
         updateVideoSurfaceInterpolation(p)
 
         // 6. Disable Full Player Controls When Minimized:
@@ -346,6 +352,25 @@ open class LiquidGlassPlayerSheetController(
 
     private fun updateVideoSurfaceInterpolation(p: Float) {
         val surface = videoSurfaceContainer ?: return
+        val isLandscape = activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        if (isLandscape && p > 0.5f) {
+            val lp = surface.layoutParams
+            if (lp is ViewGroup.MarginLayoutParams) {
+                lp.width = ViewGroup.LayoutParams.MATCH_PARENT
+                lp.height = ViewGroup.LayoutParams.MATCH_PARENT
+                lp.marginStart = 0
+                lp.marginEnd = 0
+                lp.topMargin = 0
+                lp.bottomMargin = 0
+                surface.layoutParams = lp
+            }
+            LiquidGlassHelper.setUniformCornerRadius(surface, 0f)
+            fullContentLayout?.visibility = View.GONE
+            groundedDock.visibility = View.GONE
+            landscapeDuoPill?.visibility = View.GONE
+            return
+        }
+
         val parentWidth = if (playerSheet.width > 0) playerSheet.width else activity.resources.displayMetrics.widthPixels
         val miniWidthPx = (96f * density).toInt()
         val miniHeightPx = (52f * density).toInt()
@@ -392,6 +417,7 @@ open class LiquidGlassPlayerSheetController(
                 updateVideoSurfaceInterpolation(0f)
             }
             BottomSheetBehavior.STATE_EXPANDED -> {
+                val isLandscape = activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
                 val dockHeight = if (groundedDock.height > 0) groundedDock.height.toFloat() else 64f * density
                 groundedDock.translationY = dockHeight
                 playerSheet.elevation = 32f * density
@@ -404,8 +430,8 @@ open class LiquidGlassPlayerSheetController(
                     visibility = View.GONE
                 }
                 fullContentLayout?.apply {
-                    alpha = 1f
-                    visibility = View.VISIBLE
+                    alpha = if (isLandscape) 0f else 1f
+                    visibility = if (isLandscape) View.GONE else View.VISIBLE
                 }
                 playerControlContainer?.apply {
                     alpha = 1f
@@ -421,6 +447,26 @@ open class LiquidGlassPlayerSheetController(
             }
             else -> {
                 // Dragging or settling handled continuously in handleSlide
+            }
+        }
+    }
+
+    fun onConfigurationChanged(newConfig: Configuration) {
+        val isLandscape = newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE
+        if (isLandscape) {
+            landscapeDuoPill?.visibility = View.GONE
+            if (behavior.state == BottomSheetBehavior.STATE_EXPANDED) {
+                groundedDock.visibility = View.GONE
+                fullContentLayout?.visibility = View.GONE
+                updateVideoSurfaceInterpolation(1f)
+            }
+        } else {
+            if (behavior.state == BottomSheetBehavior.STATE_EXPANDED) {
+                fullContentLayout?.visibility = View.VISIBLE
+                updateVideoSurfaceInterpolation(1f)
+            } else if (behavior.state == BottomSheetBehavior.STATE_COLLAPSED) {
+                groundedDock.visibility = View.VISIBLE
+                updateVideoSurfaceInterpolation(0f)
             }
         }
     }

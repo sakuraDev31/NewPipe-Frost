@@ -564,10 +564,14 @@ public class MainActivity extends AppCompatActivity {
         final boolean isPlayerExpanded = playerSheetController != null && playerSheetController.isExpanded();
         if (isLand && isPlayerExpanded) {
             mainBinding.floatingVerticalDuoPill.setVisibility(View.GONE);
+            mainBinding.groundedDockContainer.setVisibility(View.GONE);
         } else if (!isPlayerExpanded) {
             if (getRequestedOrientation() != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
                 setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
             }
+        }
+        if (playerSheetController != null) {
+            playerSheetController.onConfigurationChanged(newConfig);
         }
         if (adaptiveNavController != null) {
             adaptiveNavController.onConfigurationChanged(newConfig);
