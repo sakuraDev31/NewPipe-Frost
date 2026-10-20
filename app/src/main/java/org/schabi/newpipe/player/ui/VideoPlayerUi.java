@@ -271,6 +271,24 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
             return windowInsets;
         });
 
+        ViewCompat.setOnApplyWindowInsetsListener(binding.playbackControlRoot, (view, insets) -> {
+            if (!(this instanceof MainPlayerUi)) {
+                return insets;
+            }
+            final Insets bars = insets.getInsetsIgnoringVisibility(
+                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            final int[] position = new int[2];
+            view.getLocationInWindow(position);
+            final int top = Math.max(0, bars.top - position[1]);
+            // The video stays edge-to-edge; only its interactive overlays are inset.
+            view.setPadding(bars.left, top, bars.right, bars.bottom);
+            final var params = binding.playerStatusScrim.getLayoutParams();
+            params.height = top + DeviceUtils.dpToPx(16, context);
+            binding.playerStatusScrim.setLayoutParams(params);
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(binding.playbackControlRoot);
+
         // PlaybackControlRoot already consumed window insets but we should pass them to
         // player_overlays and fast_seek_overlay too. Without it they will be off-centered.
         onLayoutChangeListener =
@@ -326,6 +344,7 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
         binding.switchMute.setOnClickListener(null);
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.itemsListPanel, null);
+        ViewCompat.setOnApplyWindowInsetsListener(binding.playbackControlRoot, null);
 
         binding.playbackControlRoot.removeOnLayoutChangeListener(onLayoutChangeListener);
     }

@@ -14,9 +14,6 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentStatePagerAdapterMenuWorkaround
 import androidx.preference.PreferenceManager
-import android.util.TypedValue
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import org.schabi.newpipe.BaseFragment
 import org.schabi.newpipe.R
 import org.schabi.newpipe.databinding.FragmentMainBinding
@@ -41,6 +38,7 @@ class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingLi
     private val tabsList = ArrayList<Tab>()
     private var tabsManager: TabsManager? = null
 
+    private var refreshingFragment: BaseStateFragment<*>? = null
     private var hasTabsChanged = false
 
     private var prefs: SharedPreferences? = null
@@ -89,6 +87,17 @@ class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingLi
             androidx.core.content.ContextCompat.getColor(requireContext(), R.color.liquid_glass_crimson_accent)
         )
         bound.swipeRefreshLayout.setProgressBackgroundColorSchemeColor(0xFF141724.toInt())
+        bound.swipeRefreshLayout.setOnChildScrollUpCallback { _, _ ->
+            val feed = pagerAdapter?.primaryFragment?.view
+            val list = feed?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.items_list)
+            list?.canScrollVertically(-1) ?: feed?.canScrollVertically(-1) ?: false
+        }
+        bound.pager.addOnPageChangeListener(object : androidx.viewpager.widget.ViewPager.SimpleOnPageChangeListener() {
+            override fun onPageSelected(position: Int) {
+                refreshingFragment = null
+                binding?.swipeRefreshLayout?.isRefreshing = false
+            }
+        })
         bound.swipeRefreshLayout.setOnRefreshListener {
             refreshCurrentTab()
         }
@@ -101,20 +110,23 @@ class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingLi
 
     fun refreshCurrentTab() {
         val b = binding ?: return
+        if (refreshingFragment != null) return
+        val current = pagerAdapter?.primaryFragment as? BaseStateFragment<*>
+        if (current == null) {
+            b.swipeRefreshLayout.isRefreshing = false
+            return
+        }
+        refreshingFragment = current
         b.swipeRefreshLayout.isRefreshing = true
-        val currentTag = "android:switcher:" + b.pager.id + ":" + b.pager.currentItem
-        val currentFragment = childFragmentManager.findFragmentByTag(currentTag)
-        if (currentFragment is BaseStateFragment<*>) {
-            currentFragment.reloadContent()
-        }
-        for (fragment in childFragmentManager.fragments) {
-            if (fragment is BaseStateFragment<*>) {
-                fragment.reloadContent()
-            }
-        }
-        b.swipeRefreshLayout.postDelayed({
+        current.reloadContent()
+    }
+
+    // Completion comes from the feed's actual success, empty, or error path, not a timer.
+    fun onFeedLoadFinished(fragment: BaseStateFragment<*>) {
+        if (fragment === refreshingFragment) {
+            refreshingFragment = null
             binding?.swipeRefreshLayout?.isRefreshing = false
-        }, 1200)
+        }
     }
 
     override fun onFeedPaddingUpdated(topPadding: Int, bottomPadding: Int) {
@@ -134,7 +146,7 @@ class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingLi
         )
         for (fragment in childFragmentManager.fragments) {
             if (fragment is org.schabi.newpipe.util.LiquidFeedPaddingListener) {
-                fragment.onFeedPaddingUpdated(childTopPad, bottomPadding)
+                fragment.onFeedPaddingUpdated(topPadding, bottomPadding)
             }
         }
     }
@@ -187,7 +199,10 @@ class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingLi
     }
 
     override fun onDestroyView() {
+        binding?.pager?.adapter = null
+        pagerAdapter = null
         super.onDestroyView()
+        refreshingFragment = null
         binding = null
     }
 
@@ -247,6 +262,14 @@ class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingLi
         fragmentManager,
         BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT
     ) {
+        var primaryFragment: Fragment? = null
+            private set
+
+        override fun setPrimaryItem(container: ViewGroup, position: Int, item: Any) {
+            super.setPrimaryItem(container, position, item)
+            primaryFragment = item as? Fragment
+        }
+
         private val internalTabsList: List<Tab> = ArrayList(tabsList)
         val localPlaylistFragments: MutableList<LocalPlaylistFragment> = ArrayList()
 

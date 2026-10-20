@@ -31,8 +31,6 @@ import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
@@ -41,16 +39,12 @@ import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.util.Log;
 import android.view.KeyEvent;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebView;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
-import android.widget.Spinner;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -66,12 +60,7 @@ import androidx.fragment.app.FragmentManager;
 import androidx.preference.PreferenceManager;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.transition.MaterialSharedAxis;
 
-import androidx.dynamicanimation.animation.DynamicAnimation;
-import androidx.dynamicanimation.animation.SpringAnimation;
-import androidx.dynamicanimation.animation.SpringForce;
 
 import org.schabi.newpipe.databinding.ActivityMainBinding;
 import org.schabi.newpipe.databinding.ToolbarLayoutBinding;
@@ -79,8 +68,6 @@ import org.schabi.newpipe.error.ErrorUtil;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItem;
-import org.schabi.newpipe.extractor.exceptions.ExtractionException;
-import org.schabi.newpipe.extractor.services.peertube.PeertubeInstance;
 import org.schabi.newpipe.fragments.BackPressable;
 import org.schabi.newpipe.fragments.MainFragment;
 import org.schabi.newpipe.fragments.detail.VideoDetailFragment;
@@ -88,11 +75,7 @@ import org.schabi.newpipe.download.GlassDownloadFragment;
 import org.schabi.newpipe.fragments.list.comments.CommentRepliesFragment;
 import org.schabi.newpipe.fragments.list.search.SearchFragment;
 import org.schabi.newpipe.frost.LibraryHubFragment;
-import org.schabi.newpipe.local.bookmark.BookmarkFragment;
-import org.schabi.newpipe.local.feed.FeedFragment;
 import org.schabi.newpipe.local.feed.notifications.NotificationWorker;
-import org.schabi.newpipe.local.history.StatisticsPlaylistFragment;
-import org.schabi.newpipe.local.playlist.LocalPlaylistFragment;
 import org.schabi.newpipe.local.subscription.SubscriptionFragment;
 import org.schabi.newpipe.player.Player;
 import org.schabi.newpipe.player.event.OnKeyDownListener;
@@ -102,10 +85,8 @@ import org.schabi.newpipe.settings.UpdateSettingsFragment;
 import org.schabi.newpipe.settings.migration.MigrationManager;
 import org.schabi.newpipe.util.Constants;
 import org.schabi.newpipe.util.DeviceUtils;
-import org.schabi.newpipe.util.KioskTranslator;
 import org.schabi.newpipe.util.Localization;
 import org.schabi.newpipe.util.NavigationHelper;
-import org.schabi.newpipe.util.PeertubeHelper;
 import org.schabi.newpipe.util.PermissionHelper;
 import org.schabi.newpipe.util.ReleaseVersionUtil;
 import org.schabi.newpipe.util.SerializedCache;
@@ -114,11 +95,9 @@ import org.schabi.newpipe.util.StateSaver;
 import org.schabi.newpipe.util.ThemeHelper;
 import org.schabi.newpipe.util.external_communication.ShareUtils;
 import org.schabi.newpipe.views.FocusOverlayView;
-import org.schabi.newpipe.views.glass.LiquidGlassHelper;
 import org.schabi.newpipe.views.glass.AdaptiveGlassNavController;
 import org.schabi.newpipe.views.glass.PlayerSheetController;
 
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import android.content.res.Configuration;
 import android.text.Editable;
@@ -128,7 +107,6 @@ import android.view.inputmethod.InputMethodManager;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -196,6 +174,9 @@ public class MainActivity extends AppCompatActivity {
         setupHeaderActions();
         setupGroundedDock();
         setupLiquidStatusBar();
+        if (savedInstanceState == null && Intent.ACTION_MAIN.equals(getIntent().getAction())) {
+            showStartupBranding();
+        }
         if (DeviceUtils.isTv(this)) {
             FocusOverlayView.setupFocusObserver(this);
         }
@@ -263,6 +244,7 @@ public class MainActivity extends AppCompatActivity {
     private void setupLiquidStatusBar() {
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
         final var controller = androidx.core.view.WindowCompat.getInsetsController(
                 getWindow(), mainBinding.getRoot());
         if (controller != null) {
@@ -303,6 +285,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onStop() {
+        dismissStartupBranding();
         super.onStop();
         sharedPrefEditor.putBoolean(KEY_IS_IN_BACKGROUND, true).apply();
         Log.d(TAG, "App moved to background");
@@ -386,7 +369,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Sets up non-colliding header actions: Adaptive nav button, Search pill, Settings gear,
+     * Sets up non-colliding header actions: Adaptive nav button, Search pill,
      * and Search Edit Mode with real focusable EditText.
      */
     private void setupHeaderActions() {
@@ -407,11 +390,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-
-        // 3. Settings Gear Button
-        toolbarLayoutBinding.btnOpenSettings.setOnClickListener(v -> {
-            NavigationHelper.openSettings(this);
-        });
 
         // 4. Search Edit Mode Exit (Back button)
         toolbarLayoutBinding.btnSearchBack.setOnClickListener(v -> exitSearchMode(true));
@@ -451,6 +429,52 @@ public class MainActivity extends AppCompatActivity {
             }
             return false;
         });
+    }
+
+    private com.airbnb.lottie.LottieAnimationView startupAnimation;
+    private final Runnable finishStartup = this::dismissStartupBranding;
+
+    private void showStartupBranding() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                && !android.animation.ValueAnimator.areAnimatorsEnabled()) {
+            return;
+        }
+        final com.airbnb.lottie.LottieAnimationView animation =
+                new com.airbnb.lottie.LottieAnimationView(this);
+        startupAnimation = animation;
+        animation.setBackgroundColor(0xFF090A0F);
+        animation.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
+        final int padding = Math.max(0, (getResources().getDisplayMetrics().widthPixels
+                - DeviceUtils.dpToPx(112, this)) / 2);
+        animation.setPadding(padding, 0, padding, 0);
+        animation.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        animation.setOnClickListener(v -> dismissStartupBranding());
+        animation.setFailureListener(error -> dismissStartupBranding());
+        animation.addAnimatorListener(new android.animation.AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(final android.animation.Animator animator) {
+                dismissStartupBranding();
+            }
+        });
+        addContentView(animation, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        animation.setAnimation("frost_startup.json");
+        animation.playAnimation();
+        // Never hold navigation hostage to animation decoding or a lifecycle interruption.
+        animation.postDelayed(finishStartup, 1200);
+    }
+
+    private void dismissStartupBranding() {
+        final com.airbnb.lottie.LottieAnimationView animation = startupAnimation;
+        startupAnimation = null;
+        if (animation != null) {
+            animation.removeCallbacks(finishStartup);
+            animation.removeAllAnimatorListeners();
+            animation.cancelAnimation();
+            if (animation.getParent() instanceof ViewGroup) {
+                ((ViewGroup) animation.getParent()).removeView(animation);
+            }
+        }
     }
 
     private void setupBrandingTitle() {
@@ -581,6 +605,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        dismissStartupBranding();
         super.onDestroy();
         if (!isChangingConfigurations()) {
             StateSaver.clearStateFiles();
@@ -621,6 +646,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onNewIntent(final Intent intent) {
+        dismissStartupBranding();
         if (DEBUG) {
             Log.d(TAG, "onNewIntent() called with: intent = [" + intent + "]");
         }
@@ -659,6 +685,17 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "onBackPressed() called");
         }
 
+        if (startupAnimation != null) {
+            dismissStartupBranding();
+            return;
+        }
+        // Back may interrupt an in-flight sheet expansion without restarting playback.
+        if (playerSheetController != null
+                && playerSheetController.getBehavior().getState() == BottomSheetBehavior.STATE_SETTLING) {
+            playerSheetController.collapse();
+            return;
+        }
+
         // 1. Restore portrait orientation when navigating back from any landscape view
         if (org.schabi.newpipe.util.DeviceUtils.isLandscape(this)) {
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
@@ -667,7 +704,7 @@ public class MainActivity extends AppCompatActivity {
         // 2. Delegate to active video player first so it can exit fullscreen / handle internal stack
         final Fragment fragmentPlayer = getSupportFragmentManager()
                 .findFragmentById(R.id.fragment_player_holder);
-        if (fragmentPlayer instanceof BackPressable) {
+        if (fragmentPlayer instanceof BackPressable && !bottomSheetHiddenOrCollapsed()) {
             if (((BackPressable) fragmentPlayer).onBackPressed()) {
                 setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                 return;

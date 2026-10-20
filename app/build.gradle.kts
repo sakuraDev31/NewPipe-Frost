@@ -40,7 +40,7 @@ configure<ApplicationExtension> {
 
     defaultConfig {
         applicationId = NEWPIPE_APPLICATION_ID_OLD
-        resValue("string", "app_name", "FROST TUBE")
+        resValue("string", "app_name", "Frost tube")
         minSdk {
             version = release(NEWPIPE_VERSION_SDK_MIN)
         }
@@ -60,20 +60,20 @@ configure<ApplicationExtension> {
         debug {
             isDebuggable = true
 
-            // suffix the app id and the app name with git branch name
+            // Keep package variants distinct while retaining the public app name.
             if (normalizedWorkingBranch.isEmpty() || workingBranch in defaultBranches) {
                 applicationIdSuffix = ".debug"
-                resValue("string", "app_name", "FROST TUBE")
+                resValue("string", "app_name", "Frost tube")
             } else {
                 applicationIdSuffix = ".debug.$normalizedWorkingBranch"
-                resValue("string", "app_name", "FROST TUBE $workingBranch")
+                resValue("string", "app_name", "Frost tube")
             }
         }
 
         release {
             System.getProperty("packageSuffix")?.let { suffix ->
                 applicationIdSuffix = suffix
-                resValue("string", "app_name", "FROST TUBE $suffix")
+                resValue("string", "app_name", "Frost tube")
             }
             isMinifyEnabled = true
             isShrinkResources = true
@@ -88,13 +88,13 @@ configure<ApplicationExtension> {
             signingConfig = signingConfigs.getByName("debug")
             isDefault = true
 
-            // suffix the app id and the app name with git branch name
+            // Keep package variants distinct while retaining the public app name.
             if (normalizedWorkingBranch.isEmpty() || workingBranch in defaultBranches) {
                 applicationIdSuffix = ".continuous"
-                resValue("string", "app_name", "FROST TUBE")
+                resValue("string", "app_name", "Frost tube")
             } else {
                 applicationIdSuffix = ".continuous.$normalizedWorkingBranch"
-                resValue("string", "app_name", "FROST TUBE $workingBranch")
+                resValue("string", "app_name", "Frost tube")
             }
         }
     }
@@ -286,6 +286,7 @@ dependencies {
     // Image loading
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+    implementation("com.airbnb.android:lottie:6.7.1")
     // Real backdrop blur for the frosted-glass UI (works with XML views)
     implementation("com.github.Dimezis:BlurView:version-3.2.0")
 

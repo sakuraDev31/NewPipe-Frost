@@ -38,19 +38,24 @@
         <com.google.android.material.appbar.AppBarLayout
             android:id="@+id/app_bar_layout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:background="@android:color/transparent"
             app:elevation="0dp"
-            app:layout_behavior="com.google.android.material.appbar.FlingBehavior">
+            >
 
 
 
             <!-- CONTENT -->
-            <RelativeLayout
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/detail_info_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingBottom="24dp">
+                <RelativeLayout
                 android:id="@+id/detail_content_root_layout"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:layout_scrollFlags="scroll">
+                android:layout_height="wrap_content">
 
                 <!-- TITLE -->
                 <FrameLayout
@@ -423,29 +428,72 @@
                         android:layout_marginRight="8dp"
                         android:background="?attr/separator_color" />
 
+
+                    <TextView
+                        android:id="@+id/detail_description_preview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="64dp"
+                        android:layout_margin="12dp"
+                        android:background="@drawable/bg_whatsapp_inset_glass_group"
+                        android:foreground="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:padding="12dp"
+                        android:maxLines="3"
+                        android:ellipsize="end"
+                        android:text="@string/description_tab_description"
+                        android:textColor="@color/liquid_glass_text_title"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/detail_comments_entry"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:layout_marginHorizontal="12dp"
+                        android:background="@drawable/bg_whatsapp_inset_glass_group"
+                        android:foreground="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="12dp"
+                        android:drawableEnd="@drawable/ic_expand_more"
+                        android:drawableTint="@color/liquid_glass_text_title"
+                        android:text="@string/comments_tab_description"
+                        android:textColor="@color/liquid_glass_text_title"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/detail_related_entry"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_margin="12dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="12dp"
+                        android:text="@string/related_items_tab_description"
+                        android:textColor="@color/liquid_glass_text_title"
+                        android:textSize="14sp" />
+
                 </LinearLayout>
             </RelativeLayout>
+            </androidx.core.widget.NestedScrollView>
+
         </com.google.android.material.appbar.AppBarLayout>
 
         <androidx.viewpager.widget.ViewPager
             android:id="@+id/view_pager"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:paddingBottom="48dp"
-            app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+            android:layout_height="0dp"
+            android:visibility="gone" />
 
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tab_layout"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_gravity="bottom|center"
-            android:background="@drawable/bg_liquid_glass_bottom_dock"
-            app:elevation="8dp"
-            app:tabGravity="fill"
-            app:tabIconTint="@color/selector_glass_tab_tint"
-            app:tabIndicatorColor="#FF3B5C"
-            app:tabIndicatorGravity="top"
-            app:tabIndicatorHeight="2dp" />
+            android:layout_height="0dp"
+            android:visibility="gone" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
@@ -576,7 +624,7 @@
         android:layout_gravity="top"
         android:layout_marginStart="8dp"
         android:layout_marginEnd="8dp"
-        android:background="@drawable/bg_mini_player_glass"
+        android:background="@android:color/transparent"
         android:clickable="true"
         android:focusable="true">
 
@@ -613,7 +661,7 @@
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:layout_marginEnd="4dp"
-                android:background="@drawable/bg_glass_icon_btn"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_list"
                 android:visibility="gone"
                 android:contentDescription="@string/title_activity_play_queue"
@@ -621,10 +669,10 @@
 
             <ImageButton
                 android:id="@+id/overlay_play_pause_button"
-                android:layout_width="38dp"
-                android:layout_height="38dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_marginEnd="6dp"
-                android:background="@drawable/bg_glass_icon_btn"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/play"
                 android:scaleType="center"
                 android:src="@drawable/ic_play_arrow"
@@ -632,9 +680,9 @@
 
             <ImageButton
                 android:id="@+id/overlay_close_button"
-                android:layout_width="38dp"
-                android:layout_height="38dp"
-                android:background="@drawable/bg_glass_icon_btn"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/close"
                 android:scaleType="center"
                 android:src="@drawable/ic_close"
@@ -657,10 +705,7 @@
                 android:id="@+id/overlay_title_text_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="marquee"
-                android:fadingEdge="horizontal"
-                android:marqueeRepeatLimit="marquee_forever"
-                android:scrollHorizontally="true"
+                android:ellipsize="end"
                 android:singleLine="true"
                 android:textColor="#F5F5F7"
                 android:textSize="13sp"
@@ -682,11 +727,13 @@
         <!-- 2dp glowing crimson progress bar (#FF3B5C) along bottom edge -->
         <ProgressBar
             android:id="@+id/overlay_progress_bar"
+            android:visibility="gone"
             style="@style/Widget.AppCompat.ProgressBar.Horizontal"
             android:layout_width="match_parent"
             android:layout_height="2dp"
             android:layout_alignParentBottom="true"
             android:progressDrawable="@drawable/bg_mini_player_progress" />
     </RelativeLayout>
+
 
 </FrameLayout>

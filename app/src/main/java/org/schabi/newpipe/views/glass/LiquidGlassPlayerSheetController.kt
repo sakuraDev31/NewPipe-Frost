@@ -1,9 +1,7 @@
 package org.schabi.newpipe.views.glass
 
-import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.res.Configuration
-import android.content.Context
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
@@ -15,7 +13,6 @@ import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
 import androidx.fragment.app.FragmentActivity
 import com.google.android.material.bottomsheet.BottomSheetBehavior
-import kotlin.math.abs
 import kotlin.math.hypot
 
 /**
@@ -57,6 +54,10 @@ open class LiquidGlassPlayerSheetController(
     private var initialTranslationY = 0f
     private var isDraggingFloatingPiP = false
     private var isFloatingDetached = false
+    private var springX: SpringAnimation? = null
+    private var springY: SpringAnimation? = null
+    private var expansionStartX = 0f
+    private var expansionStartY = 0f
 
     private val miniPlayerHeightPx: Int
         get() = activity.resources.getDimensionPixelSize(org.schabi.newpipe.R.dimen.mini_player_height)
@@ -72,6 +73,9 @@ open class LiquidGlassPlayerSheetController(
         behavior.isHideable = true
         playerSheet.elevation = 20f * density
         updatePeekHeight()
+        if ((playerSheet as? ViewGroup)?.childCount == 0) {
+            behavior.state = BottomSheetBehavior.STATE_HIDDEN
+        }
 
         behavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
             override fun onStateChanged(@NonNull bottomSheet: View, newState: Int) {
@@ -91,6 +95,10 @@ open class LiquidGlassPlayerSheetController(
      * RestY = ScreenHeight - GroundedDockHeight - MiniPlayerHeight - 10dp
      */
     fun updatePeekHeight() {
+        if ((playerSheet as? ViewGroup)?.childCount == 0) {
+            behavior.peekHeight = 0
+            return
+        }
         val isDockVisible = groundedDock.visibility == View.VISIBLE
         val dockHeightPx = if (isDockVisible && groundedDock.height > 0) {
             groundedDock.height
@@ -118,6 +126,7 @@ open class LiquidGlassPlayerSheetController(
         this.miniControlsLayout = miniControls
         this.fullContentLayout = fullContent
         this.progressBar = progress
+        progress?.visibility = View.GONE
 
         setupMiniPlayerTouchGestures(miniOverlay)
 
@@ -125,6 +134,20 @@ open class LiquidGlassPlayerSheetController(
         handleStateChanged(state)
         val offset = if (state == BottomSheetBehavior.STATE_EXPANDED) 1f else 0f
         handleSlide(offset)
+    }
+
+    fun unbindPlayerViews() {
+        springX?.cancel()
+        springY?.cancel()
+        velocityTracker?.recycle()
+        velocityTracker = null
+        miniOverlayView?.setOnTouchListener(null)
+        miniOverlayView = null
+        videoSurfaceContainer = null
+        miniControlsLayout = null
+        fullContentLayout = null
+        progressBar = null
+        playerControlContainer = null
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -142,6 +165,8 @@ open class LiquidGlassPlayerSheetController(
 
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    springX?.cancel()
+                    springY?.cancel()
                     target.parent?.requestDisallowInterceptTouchEvent(true)
                     downX = event.rawX
                     downY = event.rawY
@@ -184,6 +209,11 @@ open class LiquidGlassPlayerSheetController(
                     velocityTracker = null
                     target.parent?.requestDisallowInterceptTouchEvent(false)
 
+                    if (event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                        isDraggingFloatingPiP = false
+                        snapWithSpring(0f, 0f)
+                        return@setOnTouchListener true
+                    }
                     if (!isDraggingFloatingPiP && totalDist < touchSlop) {
                         // 1. Single Tap: Expand player
                         expand()
@@ -199,38 +229,6 @@ open class LiquidGlassPlayerSheetController(
                 else -> false
             }
         }
-    }
-
-    /**
-     * Morph the mini-player container between the full-width docked strip and the 260dp floating PiP card.
-     */
-    private fun morphToFloatingPiP(floating: Boolean) {
-        val parentWidth = if (playerSheet.width > 0) playerSheet.width else activity.resources.displayMetrics.widthPixels
-        val startW = playerSheet.layoutParams.width
-        val endW = if (floating) floatingPipWidthPx else ViewGroup.LayoutParams.MATCH_PARENT
-        val startRadius = if (floating) 18f * density else 22f * density
-        val endRadius = if (floating) 22f * density else 18f * density
-
-        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 180L
-            addUpdateListener { va ->
-                val fraction = va.animatedFraction
-                val lp = playerSheet.layoutParams
-                if (endW != ViewGroup.LayoutParams.MATCH_PARENT) {
-                    lp.width = (startW + fraction * (endW - startW)).toInt()
-                } else {
-                    if (fraction >= 0.99f) {
-                        lp.width = ViewGroup.LayoutParams.MATCH_PARENT
-                    } else {
-                        lp.width = (startW + fraction * (parentWidth - startW)).toInt()
-                    }
-                }
-                playerSheet.layoutParams = lp
-                val currentRadius = startRadius + fraction * (endRadius - startRadius)
-                LiquidGlassHelper.updateTopCornerRadius(playerSheet, currentRadius)
-            }
-        }
-        animator.start()
     }
 
     /**
@@ -265,13 +263,15 @@ open class LiquidGlassPlayerSheetController(
     }
 
     private fun snapWithSpring(targetX: Float, targetY: Float, onEnd: (() -> Unit)? = null) {
-        val springX = SpringAnimation(playerSheet, DynamicAnimation.TRANSLATION_X).apply {
+        springX?.cancel()
+        springY?.cancel()
+        springX = SpringAnimation(playerSheet, DynamicAnimation.TRANSLATION_X).apply {
             spring = SpringForce(targetX).apply {
                 stiffness = SpringForce.STIFFNESS_LOW
                 dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
             }
         }
-        val springY = SpringAnimation(playerSheet, DynamicAnimation.TRANSLATION_Y).apply {
+        springY = SpringAnimation(playerSheet, DynamicAnimation.TRANSLATION_Y).apply {
             spring = SpringForce(targetY).apply {
                 stiffness = SpringForce.STIFFNESS_LOW
                 dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
@@ -280,8 +280,8 @@ open class LiquidGlassPlayerSheetController(
                 addEndListener { _, _, _, _ -> onEnd() }
             }
         }
-        springX.start()
-        springY.start()
+        springX?.start()
+        springY?.start()
     }
 
     /**
@@ -293,9 +293,16 @@ open class LiquidGlassPlayerSheetController(
 
         // Reset any floating PiP translation when expanding
         if (p > 0.05f && (playerSheet.translationX != 0f || playerSheet.translationY != 0f)) {
-            playerSheet.translationX = (1f - p) * playerSheet.translationX
-            playerSheet.translationY = (1f - p) * playerSheet.translationY
+            playerSheet.translationX = (1f - p) * expansionStartX
+            playerSheet.translationY = (1f - p) * expansionStartY
         }
+
+        activity.findViewById<View>(org.schabi.newpipe.R.id.toolbar_layout)?.apply {
+            alpha = 1f - p
+            visibility = if (p >= 1f) View.INVISIBLE else View.VISIBLE
+        }
+        videoSurfaceContainer?.findViewById<View>(org.schabi.newpipe.R.id.player_status_scrim)?.visibility =
+            if (p > 0.95f) View.VISIBLE else View.GONE
 
         // 1. Bottom Dock Translation: pushes dock off-screen downwards as player expands
         val dockHeight = if (groundedDock.height > 0) groundedDock.height.toFloat() else 64f * density
@@ -319,7 +326,16 @@ open class LiquidGlassPlayerSheetController(
         // 3. Mini-Player Controls Cross-Fade:
         // Fade out mini controls over p in [0, 0.25]
         val miniAlpha = (1f - (p / 0.25f)).coerceIn(0f, 1f)
+        miniOverlayView?.apply {
+            alpha = miniAlpha
+            visibility = if (p >= 0.25f) View.GONE else View.VISIBLE
+        }
         miniControlsLayout?.apply {
+            alpha = 1f
+            visibility = if (p >= 0.25f) View.GONE else View.VISIBLE
+        }
+        progressBar?.visibility = View.GONE
+        activity.findViewById<View>(org.schabi.newpipe.R.id.mini_backdrop)?.apply {
             alpha = miniAlpha
             visibility = if (p >= 0.25f) View.GONE else View.VISIBLE
         }
@@ -376,7 +392,7 @@ open class LiquidGlassPlayerSheetController(
         val miniHeightPx = (52f * density).toInt()
 
         val fullWidthPx = parentWidth
-        val fullHeightPx = (220f * density).toInt()
+        val fullHeightPx = (parentWidth * 9f / 16f).toInt()
 
         val currentW = (miniWidthPx + p * (fullWidthPx - miniWidthPx)).toInt()
         val currentH = (miniHeightPx + p * (fullHeightPx - miniHeightPx)).toInt()
@@ -386,11 +402,20 @@ open class LiquidGlassPlayerSheetController(
 
         val lp = surface.layoutParams
         if (lp is ViewGroup.MarginLayoutParams) {
-            lp.width = currentW
-            lp.height = currentH
-            lp.marginStart = currentMarginStart
-            lp.topMargin = currentMarginTop
-            surface.layoutParams = lp
+            if (lp.width != currentW || lp.height != currentH
+                || lp.marginStart != currentMarginStart || lp.topMargin != currentMarginTop) {
+                lp.width = currentW
+                lp.height = currentH
+                lp.marginStart = currentMarginStart
+                lp.topMargin = currentMarginTop
+                surface.layoutParams = lp
+            }
+        }
+        (fullContentLayout?.layoutParams as? ViewGroup.MarginLayoutParams)?.let { contentParams ->
+            if (contentParams.topMargin != currentH) {
+                contentParams.topMargin = currentH
+                fullContentLayout?.layoutParams = contentParams
+            }
         }
 
         val thumbRadiusPx = 12f * (1f - p) * density
@@ -440,6 +465,12 @@ open class LiquidGlassPlayerSheetController(
                 updateVideoSurfaceInterpolation(1f)
             }
             BottomSheetBehavior.STATE_HIDDEN -> {
+                springX?.cancel()
+                springY?.cancel()
+                activity.findViewById<View>(org.schabi.newpipe.R.id.toolbar_layout)?.apply {
+                    alpha = 1f
+                    visibility = View.VISIBLE
+                }
                 groundedDock.translationY = 0f
                 playerSheet.elevation = 20f * density
                 playerSheet.translationX = 0f
@@ -488,10 +519,16 @@ open class LiquidGlassPlayerSheetController(
     }
 
     fun expand() {
+        springX?.cancel()
+        springY?.cancel()
+        expansionStartX = playerSheet.translationX
+        expansionStartY = playerSheet.translationY
         behavior.state = BottomSheetBehavior.STATE_EXPANDED
     }
 
     fun collapse() {
+        springX?.cancel()
+        springY?.cancel()
         behavior.state = BottomSheetBehavior.STATE_COLLAPSED
     }
 

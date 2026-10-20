@@ -489,7 +489,8 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         final ActionBar supportActionBar = activity.getSupportActionBar();
         if (supportActionBar != null) {
             supportActionBar.setDisplayShowTitleEnabled(false);
-            supportActionBar.setDisplayHomeAsUpEnabled(true);
+            // The custom header already owns the single back button.
+            supportActionBar.setDisplayHomeAsUpEnabled(false);
         }
 
         int itemId = 0;

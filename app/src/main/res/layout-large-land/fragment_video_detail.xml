@@ -20,10 +20,10 @@
     <eightbitlab.com.blurview.BlurView
         android:id="@+id/mini_backdrop"
         android:layout_width="match_parent"
-        android:layout_height="135dp"
+        android:layout_height="68dp"
         android:layout_marginHorizontal="8dp"
         android:layout_marginTop="8dp"
-        android:background="@drawable/frost_mini_player_bg"
+        android:background="@drawable/bg_mini_player_glass"
         android:visibility="gone" />
 
 
@@ -46,20 +46,26 @@
             <com.google.android.material.appbar.AppBarLayout
                 android:id="@+id/app_bar_layout"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:background="@android:color/transparent"
                 android:touchscreenBlocksFocus="false"
                 app:elevation="0dp"
-                app:layout_behavior="com.google.android.material.appbar.FlingBehavior">
+                >
 
 
 
                 <!-- CONTENT -->
+                <androidx.core.widget.NestedScrollView
+                android:id="@+id/detail_info_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingBottom="24dp">
                 <RelativeLayout
                     android:id="@+id/detail_content_root_layout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:layout_scrollFlags="scroll">
+                    >
 
                     <!-- TITLE -->
                     <FrameLayout
@@ -484,32 +490,78 @@
                             android:layout_marginRight="8dp"
                             android:background="?attr/separator_color" />
 
-                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/detail_description_preview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="64dp"
+                        android:layout_margin="12dp"
+                        android:background="@drawable/bg_whatsapp_inset_glass_group"
+                        android:foreground="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:padding="12dp"
+                        android:maxLines="3"
+                        android:ellipsize="end"
+                        android:text="@string/description_tab_description"
+                        android:textColor="@color/liquid_glass_text_title"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/detail_comments_entry"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:layout_marginHorizontal="12dp"
+                        android:background="@drawable/bg_whatsapp_inset_glass_group"
+                        android:foreground="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="12dp"
+                        android:drawableEnd="@drawable/ic_expand_more"
+                        android:drawableTint="@color/liquid_glass_text_title"
+                        android:text="@string/comments_tab_description"
+                        android:textColor="@color/liquid_glass_text_title"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/detail_related_entry"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_margin="12dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="12dp"
+                        android:text="@string/related_items_tab_description"
+                        android:textColor="@color/liquid_glass_text_title"
+                        android:textSize="14sp" />
+
+                </LinearLayout>
                 </RelativeLayout>
+            </androidx.core.widget.NestedScrollView>
+
             </com.google.android.material.appbar.AppBarLayout>
 
             <androidx.viewpager.widget.ViewPager
-                android:id="@+id/view_pager"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:paddingBottom="48dp"
-                app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+            android:id="@+id/view_pager"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:visibility="gone" />
 
             <com.google.android.material.tabs.TabLayout
-                android:id="@+id/tab_layout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="bottom|center"
-                app:elevation="16dp"
-                app:tabBackground="@android:color/transparent"
-                app:tabGravity="fill"
-                app:tabIconTint="?attr/colorAccent"
-                app:tabIndicatorGravity="top" />
+            android:id="@+id/tab_layout"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:visibility="gone" />
 
         </org.schabi.newpipe.views.FocusAwareCoordinator>
 
         <androidx.fragment.app.FragmentContainerView
             android:id="@+id/relatedItemsLayout"
+            android:visibility="gone"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_marginTop="10dp"
@@ -641,68 +693,120 @@
     <RelativeLayout
         android:id="@+id/overlay_layout"
         android:layout_width="match_parent"
-        android:layout_height="135dp"
-        android:layout_marginHorizontal="8dp"
-        android:layout_marginTop="8dp"
-        android:visibility="gone">
+        android:layout_height="68dp"
+        android:layout_gravity="top"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:background="@android:color/transparent"
+        android:clickable="true"
+        android:focusable="true">
 
-        <ImageView
-            android:id="@+id/overlay_thumbnail"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@android:color/transparent"
-            android:padding="0dp"
-            android:scaleType="centerCrop"
-            android:contentDescription="@string/play" />
+        <!-- Compact rounded video thumbnail on the left -->
+        <FrameLayout
+            android:id="@+id/overlay_thumbnail_container"
+            android:layout_width="96dp"
+            android:layout_height="52dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="8dp">
 
-        <!-- Metadata remains available to accessibility without recreating an audio strip. -->
+            <ImageView
+                android:id="@+id/overlay_thumbnail"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:contentDescription="@string/play" />
+        </FrameLayout>
+
+        <!-- Frosted glass Play/Pause and Close icon buttons on the right -->
+        <LinearLayout
+            android:id="@+id/overlay_buttons_layout"
+            android:layout_width="wrap_content"
+            android:layout_height="68dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingEnd="8dp">
+
+            <ImageButton
+                android:id="@+id/overlay_play_queue_button"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginEnd="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_list"
+                android:visibility="gone"
+                android:contentDescription="@string/title_activity_play_queue"
+                app:tint="#FFFFFF" />
+
+            <ImageButton
+                android:id="@+id/overlay_play_pause_button"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/play"
+                android:scaleType="center"
+                android:src="@drawable/ic_play_arrow"
+                app:tint="#FFFFFF" />
+
+            <ImageButton
+                android:id="@+id/overlay_close_button"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/close"
+                android:scaleType="center"
+                android:src="@drawable/ic_close"
+                app:tint="#FFFFFF" />
+        </LinearLayout>
+
+        <!-- Marquee title (#F5F5F7) + channel subtitle (#A1A1AA) -->
         <LinearLayout
             android:id="@+id/overlay_metadata_layout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
+            android:layout_height="68dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_toEndOf="@id/overlay_thumbnail_container"
+            android:layout_toStartOf="@id/overlay_buttons_layout"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+
             <org.schabi.newpipe.views.NewPipeTextView
                 android:id="@+id/overlay_title_text_view"
-                android:layout_width="match_parent" android:layout_height="wrap_content" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="#F5F5F7"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                tools:text="Video Title Here" />
+
             <org.schabi.newpipe.views.NewPipeTextView
                 android:id="@+id/overlay_channel_text_view"
-                android:layout_width="match_parent" android:layout_height="wrap_content" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="#A1A1AA"
+                android:textSize="11sp"
+                tools:text="Channel Name" />
         </LinearLayout>
 
-        <RelativeLayout
-            android:id="@+id/overlay_buttons_layout"
-            android:layout_width="match_parent"
-            android:layout_height="48dp">
-            <ImageButton
-                android:id="@+id/overlay_play_queue_button"
-                android:layout_width="48dp" android:layout_height="48dp"
-                android:visibility="gone"
-                android:contentDescription="@string/title_activity_play_queue" />
-            <ImageButton
-                android:id="@+id/overlay_play_pause_button"
-                android:layout_width="44dp" android:layout_height="44dp"
-                android:layout_alignParentStart="true" android:layout_margin="4dp"
-                android:background="@drawable/frost_duration_bg"
-                android:contentDescription="@string/pause"
-                android:scaleType="center" android:src="@drawable/ic_play_arrow"
-                android:tint="@android:color/white" />
-            <ImageButton
-                android:id="@+id/overlay_close_button"
-                android:layout_width="44dp" android:layout_height="44dp"
-                android:layout_alignParentEnd="true" android:layout_margin="4dp"
-                android:background="@drawable/frost_duration_bg"
-                android:contentDescription="@string/close"
-                android:scaleType="center" android:src="@drawable/ic_close"
-                android:tint="@android:color/white" />
-        </RelativeLayout>
-
+        <!-- 2dp glowing crimson progress bar (#FF3B5C) along bottom edge -->
         <ProgressBar
             android:id="@+id/overlay_progress_bar"
+            android:visibility="gone"
             style="@style/Widget.AppCompat.ProgressBar.Horizontal"
-            android:layout_width="match_parent" android:layout_height="2dp"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
             android:layout_alignParentBottom="true"
-            android:progressDrawable="@drawable/frost_mini_progress" />
+            android:progressDrawable="@drawable/bg_mini_player_progress" />
     </RelativeLayout>
+
 
 </FrameLayout>

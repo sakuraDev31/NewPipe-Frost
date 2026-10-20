@@ -103,7 +103,6 @@ public class SettingsActivity extends AppCompatActivity implements
         binding.settingsToolbarLayout.btnHeaderNavIcon.setImageResource(R.drawable.ic_arrow_back);
         binding.settingsToolbarLayout.btnHeaderNav.setOnClickListener(v -> onBackPressed());
         binding.settingsToolbarLayout.headerTitle.setText(R.string.settings);
-        binding.settingsToolbarLayout.btnOpenSettings.setVisibility(View.GONE);
         binding.settingsToolbarLayout.btnSearchBack.setOnClickListener(v -> setSearchActive(false));
 
         if (restored) {

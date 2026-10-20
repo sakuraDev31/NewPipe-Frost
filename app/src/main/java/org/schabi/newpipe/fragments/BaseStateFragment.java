@@ -76,6 +76,7 @@ public abstract class BaseStateFragment<I> extends BaseFragment implements ViewC
 
     @Override
     public void onDestroyView() {
+        notifyHomeRefreshFinished();
         super.onDestroyView();
         if (errorPanelHelper != null) {
             errorPanelHelper.dispose();
@@ -123,8 +124,15 @@ public abstract class BaseStateFragment<I> extends BaseFragment implements ViewC
         hideErrorPanel();
     }
 
+    private void notifyHomeRefreshFinished() {
+        if (getParentFragment() instanceof MainFragment) {
+            ((MainFragment) getParentFragment()).onFeedLoadFinished(this);
+        }
+    }
+
     @Override
     public void hideLoading() {
+        notifyHomeRefreshFinished();
         if (emptyStateView != null) {
             animate(emptyStateView, false, 150);
         }
@@ -136,6 +144,7 @@ public abstract class BaseStateFragment<I> extends BaseFragment implements ViewC
 
     @Override
     public void showEmptyState() {
+        notifyHomeRefreshFinished();
         isLoading.set(false);
         if (emptyStateView != null) {
             animate(emptyStateView, true, 200);
@@ -156,6 +165,7 @@ public abstract class BaseStateFragment<I> extends BaseFragment implements ViewC
 
     @Override
     public void handleError() {
+        notifyHomeRefreshFinished();
         isLoading.set(false);
         InfoCache.getInstance().clearCache();
         if (emptyStateView != null) {

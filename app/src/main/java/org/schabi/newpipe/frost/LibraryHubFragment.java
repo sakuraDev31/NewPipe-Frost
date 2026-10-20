@@ -52,6 +52,8 @@ public class LibraryHubFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull final View root, @Nullable final Bundle savedInstanceState) {
         super.onViewCreated(root, savedInstanceState);
+        root.findViewById(R.id.hub_settings).setOnClickListener(v ->
+                NavigationHelper.openSettings(requireActivity()));
         final View.OnClickListener historyClick = v ->
                 NavigationHelper.openStatisticFragment(getParentFragmentManager());
         final View.OnClickListener playlistsClick = v ->

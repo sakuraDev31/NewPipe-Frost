@@ -29,6 +29,7 @@ import org.schabi.newpipe.fragments.OnScrollBelowItemsListener;
 import org.schabi.newpipe.info_list.InfoListAdapter;
 import org.schabi.newpipe.info_list.ItemViewMode;
 import org.schabi.newpipe.info_list.dialog.InfoItemDialog;
+import org.schabi.newpipe.util.DeviceUtils;
 import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.OnClickGesture;
 import org.schabi.newpipe.util.StateSaver;
@@ -238,7 +239,10 @@ public abstract class BaseListFragment<I, N> extends BaseStateFragment<I>
         itemsList = rootView.findViewById(R.id.items_list);
         if (itemsList != null) {
             itemsList.setClipToPadding(false);
-            if (activity instanceof MainActivity) {
+            if (getParentFragment() instanceof org.schabi.newpipe.fragments.detail.VideoInfoSheet) {
+                itemsList.setPadding(itemsList.getPaddingLeft(), 0,
+                        itemsList.getPaddingRight(), DeviceUtils.dpToPx(16, requireContext()));
+            } else if (activity instanceof MainActivity) {
                 final MainActivity ma = (MainActivity) activity;
                 final int topPad = ma.getTopHeaderTotalHeight()
                         + (useAsFrontPage ? org.schabi.newpipe.util.DeviceUtils.dpToPx(48, requireContext()) : 0);
@@ -286,6 +290,9 @@ public abstract class BaseListFragment<I, N> extends BaseStateFragment<I>
     }
 
     protected void onItemSelected(final InfoItem selectedItem) {
+        if (getParentFragment() instanceof org.schabi.newpipe.fragments.detail.VideoInfoSheet) {
+            ((org.schabi.newpipe.fragments.detail.VideoInfoSheet) getParentFragment()).dismiss();
+        }
         if (DEBUG) {
             Log.d(TAG, "onItemSelected() called with: selectedItem = [" + selectedItem + "]");
         }
