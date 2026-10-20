@@ -13,6 +13,7 @@ on:
   push:
     branches:
       - 'frost/**'
+      - 'genspark ai developer'
 
 concurrency:
   group: build-apk-${{ github.ref }}
