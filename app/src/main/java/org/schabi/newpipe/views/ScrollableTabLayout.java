@@ -125,7 +125,12 @@ public class ScrollableTabLayout extends TabLayout {
             }
         }
 
-        setMode(TabLayout.MODE_SCROLLABLE);
-        setTabGravity(TabLayout.GRAVITY_START);
+        if (contentWidth < layoutWidth) {
+            setMode(TabLayout.MODE_FIXED);
+            setTabGravity(TabLayout.GRAVITY_CENTER);
+        } else {
+            setMode(TabLayout.MODE_SCROLLABLE);
+            setTabGravity(TabLayout.GRAVITY_START);
+        }
     }
 }

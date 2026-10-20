@@ -107,4 +107,42 @@
         <item name="cornerSize">50%</item>
     </style>
 
+    <style name="GlassThumbnail14dp">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">14dp</item>
+    </style>
+
+    <!-- Liquid Glass Styles -->
+    <style name="LiquidGlassPlayerSheetTheme" parent="ThemeOverlay.Material3.Dark">
+        <item name="android:textColorPrimary">@color/liquid_glass_text_title</item>
+        <item name="android:textColorSecondary">@color/liquid_glass_text_secondary</item>
+        <item name="colorAccent">@color/liquid_glass_crimson_accent</item>
+        <item name="tint">@color/white</item>
+        <item name="iconTint">@color/white</item>
+    </style>
+
+    <style name="LiquidGlassActionPill">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">36dp</item>
+        <item name="android:background">@drawable/bg_liquid_glass_action_pill</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:textColor">@color/liquid_glass_text_title</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:drawablePadding">6dp</item>
+    </style>
+
+    <style name="GroundedDockTextActive" parent="TextAppearance.AppCompat.Caption">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/liquid_glass_crimson_accent</item>
+    </style>
+
+    <style name="GroundedDockTextInactive" parent="TextAppearance.AppCompat.Caption">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">#99FFFFFF</item>
+    </style>
+
 </resources>

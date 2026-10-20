@@ -19,6 +19,7 @@ import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.schabi.newpipe.MainActivity;
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.error.ErrorUtil;
 import org.schabi.newpipe.extractor.InfoItem;
@@ -28,6 +29,7 @@ import org.schabi.newpipe.fragments.OnScrollBelowItemsListener;
 import org.schabi.newpipe.info_list.InfoListAdapter;
 import org.schabi.newpipe.info_list.ItemViewMode;
 import org.schabi.newpipe.info_list.dialog.InfoItemDialog;
+import org.schabi.newpipe.util.DeviceUtils;
 import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.OnClickGesture;
 import org.schabi.newpipe.util.StateSaver;
@@ -40,7 +42,8 @@ import java.util.function.Supplier;
 
 public abstract class BaseListFragment<I, N> extends BaseStateFragment<I>
         implements ListViewContract<I, N>, StateSaver.WriteRead,
-        SharedPreferences.OnSharedPreferenceChangeListener {
+        SharedPreferences.OnSharedPreferenceChangeListener,
+        org.schabi.newpipe.util.LiquidFeedPaddingListener {
     private static final int LIST_MODE_UPDATE_FLAG = 0x32;
     protected org.schabi.newpipe.util.SavedState savedState;
 
@@ -236,13 +239,29 @@ public abstract class BaseListFragment<I, N> extends BaseStateFragment<I>
         itemsList = rootView.findViewById(R.id.items_list);
         if (itemsList != null) {
             itemsList.setClipToPadding(false);
-            final int clearBottom = getResources().getDimensionPixelSize(R.dimen.list_bottom_clear_padding);
-            itemsList.setPadding(
-                    itemsList.getPaddingLeft(),
-                    itemsList.getPaddingTop(),
-                    itemsList.getPaddingRight(),
-                    clearBottom
-            );
+            if (getParentFragment() instanceof org.schabi.newpipe.fragments.detail.VideoInfoSheet) {
+                itemsList.setPadding(itemsList.getPaddingLeft(), 0,
+                        itemsList.getPaddingRight(), DeviceUtils.dpToPx(16, requireContext()));
+            } else if (activity instanceof MainActivity) {
+                final MainActivity ma = (MainActivity) activity;
+                final int topPad = ma.getTopHeaderTotalHeight()
+                        + (useAsFrontPage ? org.schabi.newpipe.util.DeviceUtils.dpToPx(48, requireContext()) : 0);
+                final int bottomPad = ma.getFeedBottomContentPadding();
+                itemsList.setPadding(
+                        itemsList.getPaddingLeft(),
+                        topPad,
+                        itemsList.getPaddingRight(),
+                        bottomPad
+                );
+            } else {
+                final int clearBottom = getResources().getDimensionPixelSize(R.dimen.list_bottom_clear_padding);
+                itemsList.setPadding(
+                        itemsList.getPaddingLeft(),
+                        itemsList.getPaddingTop(),
+                        itemsList.getPaddingRight(),
+                        clearBottom
+                );
+            }
         }
         refreshItemViewMode();
 
@@ -254,7 +273,26 @@ public abstract class BaseListFragment<I, N> extends BaseStateFragment<I>
         itemsList.setAdapter(infoListAdapter);
     }
 
+    @Override
+    public void onFeedPaddingUpdated(final int topPadding, final int bottomPadding) {
+        if (itemsList != null && getContext() != null) {
+            final int effectiveTop = useAsFrontPage
+                    ? topPadding + org.schabi.newpipe.util.DeviceUtils.dpToPx(48, requireContext())
+                    : topPadding;
+            itemsList.setClipToPadding(false);
+            itemsList.setPadding(
+                    itemsList.getPaddingLeft(),
+                    effectiveTop,
+                    itemsList.getPaddingRight(),
+                    bottomPadding
+            );
+        }
+    }
+
     protected void onItemSelected(final InfoItem selectedItem) {
+        if (getParentFragment() instanceof org.schabi.newpipe.fragments.detail.VideoInfoSheet) {
+            ((org.schabi.newpipe.fragments.detail.VideoInfoSheet) getParentFragment()).dismiss();
+        }
         if (DEBUG) {
             Log.d(TAG, "onItemSelected() called with: selectedItem = [" + selectedItem + "]");
         }

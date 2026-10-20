@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/channel_avatar_dock_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@android:color/transparent">
+
+    <!-- 88dp Frosted Channel Avatar Dock -->
+    <LinearLayout
+        android:id="@+id/avatar_dock_container"
+        android:layout_width="match_parent"
+        android:layout_height="88dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_whatsapp_inset_glass_group"
+        android:clipToOutline="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/channel_avatar_recycler"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:orientation="horizontal"
+            android:scrollbars="none"
+            tools:listitem="@layout/item_channel_avatar_bubble" />
+
+        <View
+            android:layout_width="0.8dp"
+            android:layout_height="48dp"
+            android:layout_marginVertical="20dp"
+            android:background="#26FFFFFF" />
+
+        <!-- "All" button to manage subscriptions -->
+        <LinearLayout
+            android:id="@+id/channel_avatar_all_btn"
+            android:layout_width="60dp"
+            android:layout_height="match_parent"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:src="@drawable/ic_subscriptions"
+                app:tint="@color/liquid_glass_crimson_accent"
+                tools:ignore="ContentDescription" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/all"
+                android:textColor="@color/liquid_glass_text_title"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Filter Chips Below Avatar Dock -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/subscription_filter_strip"
+        android:layout_width="match_parent"
+        android:layout_height="46dp"
+        android:clipToPadding="false"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:layout_marginTop="2dp"
+        android:scrollbars="none" />
+
+</LinearLayout>

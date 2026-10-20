@@ -2,12 +2,23 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#090A0F"
+    android:clipToPadding="false">
+
+    <!-- Top Channel Avatar Dock and Filter Strip -->
+    <include
+        android:id="@+id/channel_avatar_dock"
+        layout="@layout/layout_channel_avatar_dock"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/items_list"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_below="@id/channel_avatar_dock"
         android:scrollbars="vertical"
         android:clipToPadding="false"
         android:paddingBottom="@dimen/list_bottom_clear_padding"
@@ -20,7 +31,7 @@
         layout="@layout/error_panel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/items_list"
+        android:layout_below="@id/channel_avatar_dock"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="50dp"
         android:visibility="gone"
@@ -31,16 +42,10 @@
         layout="@layout/list_empty_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/items_list"
+        android:layout_below="@id/channel_avatar_dock"
         android:layout_centerInParent="true"
         android:layout_marginTop="50dp"
         android:visibility="gone"
         tools:visibility="visible" />
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="4dp"
-        android:layout_alignParentTop="true"
-        android:background="?attr/toolbar_shadow" />
 
 </RelativeLayout>

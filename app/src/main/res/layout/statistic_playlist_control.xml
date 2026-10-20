@@ -1,41 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
 
-    <RelativeLayout
-        android:id="@+id/sortButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true">
+    <!-- Inline Frosted Search Bar -->
+    <LinearLayout
+        android:id="@+id/history_search_bar"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/bg_glass_search_pill"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp">
 
         <ImageView
-            android:id="@+id/sortButtonIcon"
-            android:layout_width="48dp"
-            android:layout_height="28dp"
-            android:layout_alignParentLeft="true"
-            android:layout_centerVertical="true"
-            android:layout_marginLeft="12dp"
-            android:layout_marginRight="12dp"
-            android:src="@drawable/ic_filter_list"
-            tools:ignore="ContentDescription,RtlHardcoded" />
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_search"
+            app:tint="@color/liquid_glass_text_secondary"
+            tools:ignore="ContentDescription" />
 
-        <org.schabi.newpipe.views.NewPipeTextView
-            android:id="@+id/sortButtonText"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_toRightOf="@id/sortButtonIcon"
-            android:gravity="left|center"
-            android:text="@string/title_most_played"
-            android:textAppearance="?android:attr/textAppearanceLarge"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            tools:ignore="RtlHardcoded" />
-    </RelativeLayout>
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:text="Search watch history..."
+            android:textColor="@color/liquid_glass_text_secondary"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <!-- Top Action Row: Sort Mode Capsule Chip -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp">
+
+        <LinearLayout
+            android:id="@+id/sortButton"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:background="@drawable/bg_liquid_glass_action_pill"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <ImageView
+                android:id="@+id/sortButtonIcon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_filter_list"
+                app:tint="@color/liquid_glass_crimson_accent"
+                tools:ignore="ContentDescription" />
+
+            <org.schabi.newpipe.views.NewPipeTextView
+                android:id="@+id/sortButtonText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="@string/title_most_played"
+                android:textColor="@color/liquid_glass_text_title"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
 
     <include
         android:id="@+id/playlist_control"

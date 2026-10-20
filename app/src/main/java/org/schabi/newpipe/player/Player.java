@@ -1,5 +1,10 @@
 package org.schabi.newpipe.player;
 
+import static com.google.android.exoplayer2.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED;
+import static com.google.android.exoplayer2.PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED;
+import static com.google.android.exoplayer2.PlaybackException.ERROR_CODE_DECODING_FAILED;
+import static com.google.android.exoplayer2.PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES;
+import static com.google.android.exoplayer2.PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED;
 import static com.google.android.exoplayer2.PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW;
 import static com.google.android.exoplayer2.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS;
 import static com.google.android.exoplayer2.PlaybackException.ERROR_CODE_IO_CLEARTEXT_NOT_PERMITTED;
@@ -1582,6 +1587,33 @@ public final class Player implements PlaybackListener, Listener {
                 // Reload playback on unexpected errors:
                 setRecovery();
                 reloadPlayQueueManager();
+                break;
+            case ERROR_CODE_DECODER_INIT_FAILED:
+            case ERROR_CODE_DECODER_QUERY_FAILED:
+            case ERROR_CODE_DECODING_FAILED:
+            case ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES:
+            case ERROR_CODE_DECODING_FORMAT_UNSUPPORTED:
+                if (currentMetadata != null) {
+                    final Optional<org.schabi.newpipe.player.mediaitem.MediaItemTag.Quality> qualityOpt =
+                            currentMetadata.getMaybeQuality();
+                    if (qualityOpt.isPresent()) {
+                        final org.schabi.newpipe.player.mediaitem.MediaItemTag.Quality quality =
+                                qualityOpt.get();
+                        final List<VideoStream> streams = quality.getSortedVideoStreams();
+                        final int currentIndex = quality.getSelectedVideoStreamIndex();
+                        if (streams != null && currentIndex >= 0 && currentIndex + 1 < streams.size()) {
+                            final VideoStream fallbackStream = streams.get(currentIndex + 1);
+                            Log.w(TAG, "Decoder error encountered on "
+                                    + streams.get(currentIndex).getResolution()
+                                    + ". Automatically falling back to lower resolution: "
+                                    + fallbackStream.getResolution(), error);
+                            isCatchableException = true;
+                            setPlaybackQuality(fallbackStream.getResolution());
+                            return;
+                        }
+                    }
+                }
+                onPlaybackShutdown();
                 break;
             default:
                 // API, remote and renderer errors belong here:

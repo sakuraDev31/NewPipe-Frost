@@ -239,7 +239,7 @@ public final class ListHelper {
                 PreferenceManager.getDefaultSharedPreferences(context);
 
         final boolean showHigherResolutions = preferences.getBoolean(
-                context.getString(R.string.show_higher_resolutions_key), false);
+                context.getString(R.string.show_higher_resolutions_key), true);
         final MediaFormat defaultFormat = getDefaultFormat(context,
                 R.string.default_video_format_key, R.string.default_video_format_value);
 
@@ -399,7 +399,7 @@ public final class ListHelper {
 
         // Load the preferred resolution otherwise the best available
         String resolution = preferences != null
-                ? preferences.getString(context.getString(key), context.getString(value))
+                ? preferences.getString(context.getString(key), context.getString(R.string.best_resolution_key))
                 : context.getString(R.string.best_resolution_key);
 
         final String maxResolution = getResolutionLimit(context);
@@ -432,7 +432,8 @@ public final class ListHelper {
 
         sortStreamList(videoStreams, false);
         if (defaultResolution.equals(bestResolutionKey)) {
-            return 0;
+            final int bestSupportedIndex = DeviceCapabilityHelper.getBestSupportedStreamIndex(videoStreams);
+            return bestSupportedIndex >= 0 ? bestSupportedIndex : 0;
         }
 
         final int defaultStreamIndex =
@@ -441,7 +442,8 @@ public final class ListHelper {
         // this is actually an error,
         // but maybe there is really no stream fitting to the default value.
         if (defaultStreamIndex == -1) {
-            return 0;
+            final int bestSupportedIndex = DeviceCapabilityHelper.getBestSupportedStreamIndex(videoStreams);
+            return bestSupportedIndex >= 0 ? bestSupportedIndex : 0;
         }
         return defaultStreamIndex;
     }

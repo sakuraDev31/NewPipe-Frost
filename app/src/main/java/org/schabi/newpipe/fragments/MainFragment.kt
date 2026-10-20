@@ -1,0 +1,336 @@
+package org.schabi.newpipe.fragments
+
+import android.content.Context
+import android.content.SharedPreferences
+import android.os.Bundle
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
+import android.view.View
+import android.view.ViewGroup
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.FragmentStatePagerAdapterMenuWorkaround
+import androidx.preference.PreferenceManager
+import androidx.recyclerview.widget.RecyclerView
+import org.schabi.newpipe.BaseFragment
+import org.schabi.newpipe.R
+import org.schabi.newpipe.databinding.FragmentMainBinding
+import org.schabi.newpipe.error.ErrorInfo
+import org.schabi.newpipe.error.ErrorUtil
+import org.schabi.newpipe.error.UserAction
+import org.schabi.newpipe.local.playlist.LocalPlaylistFragment
+import org.schabi.newpipe.settings.tabs.Tab
+import org.schabi.newpipe.settings.tabs.TabsManager
+import org.schabi.newpipe.util.NavigationHelper
+import org.schabi.newpipe.util.ServiceHelper
+import java.util.ArrayList
+
+/**
+ * Main frontpage fragment hosting the home feeds without the legacy top tab bar.
+ */
+class MainFragment : BaseFragment(), org.schabi.newpipe.util.LiquidFeedPaddingListener {
+
+    private var binding: FragmentMainBinding? = null
+    private var pagerAdapter: SelectedTabsPagerAdapter? = null
+
+    private val tabsList = ArrayList<Tab>()
+    private var tabsManager: TabsManager? = null
+
+    private var refreshingFragment: BaseStateFragment<*>? = null
+    private var hasTabsChanged = false
+
+    private var prefs: SharedPreferences? = null
+    private var youtubeRestrictedModeEnabled = false
+    private var youtubeRestrictedModeEnabledKey: String? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setHasOptionsMenu(true)
+
+        tabsManager = TabsManager.getManager(activity)
+        tabsManager?.setSavedTabsListener {
+            if (DEBUG) {
+                Log.d(MAIN_TAG, "TabsManager.SavedTabsChangeListener: onTabsChanged, isResumed = $isResumed")
+            }
+            if (isResumed) {
+                setupTabs()
+            } else {
+                hasTabsChanged = true
+            }
+        }
+
+        val context = requireContext()
+        prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        youtubeRestrictedModeEnabledKey = getString(R.string.youtube_restricted_mode_enabled)
+        youtubeRestrictedModeEnabled = prefs?.getBoolean(youtubeRestrictedModeEnabledKey, false) ?: false
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        return inflater.inflate(R.layout.fragment_main, container, false)
+    }
+
+    override fun initViews(rootView: View, savedInstanceState: Bundle?) {
+        super.initViews(rootView, savedInstanceState)
+        val bound = FragmentMainBinding.bind(rootView)
+        binding = bound
+
+        setupTabs()
+        setupFilterStrip()
+
+        bound.swipeRefreshLayout.setColorSchemeColors(
+            androidx.core.content.ContextCompat.getColor(requireContext(), R.color.liquid_glass_crimson_accent)
+        )
+        bound.swipeRefreshLayout.setProgressBackgroundColorSchemeColor(0xFF141724.toInt())
+        bound.swipeRefreshLayout.setOnChildScrollUpCallback { _, _ ->
+            val feed = pagerAdapter?.primaryFragment?.view
+            val list = feed?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.items_list)
+            list?.canScrollVertically(-1) ?: feed?.canScrollVertically(-1) ?: false
+        }
+        bound.pager.addOnPageChangeListener(object : androidx.viewpager.widget.ViewPager.SimpleOnPageChangeListener() {
+            override fun onPageSelected(position: Int) {
+                refreshingFragment = null
+                binding?.swipeRefreshLayout?.isRefreshing = false
+                bindFilterScrollListener()
+            }
+        })
+        bound.swipeRefreshLayout.setOnRefreshListener {
+            refreshCurrentTab()
+        }
+
+        val ma = activity as? org.schabi.newpipe.MainActivity
+        val topPad = ma?.topHeaderTotalHeight ?: (56 * resources.displayMetrics.density).toInt()
+        val bottomPad = ma?.feedBottomContentPadding ?: (64 * resources.displayMetrics.density).toInt()
+        onFeedPaddingUpdated(topPad, bottomPad)
+    }
+
+    fun refreshCurrentTab() {
+        val b = binding ?: return
+        if (refreshingFragment != null) return
+        val current = pagerAdapter?.primaryFragment as? BaseStateFragment<*>
+        if (current == null) {
+            b.swipeRefreshLayout.isRefreshing = false
+            return
+        }
+        refreshingFragment = current
+        b.swipeRefreshLayout.isRefreshing = true
+        current.reloadContent()
+    }
+
+    // Completion comes from the feed's actual success, empty, or error path, not a timer.
+    fun onFeedLoadFinished(fragment: BaseStateFragment<*>) {
+        if (fragment === refreshingFragment) {
+            refreshingFragment = null
+            binding?.swipeRefreshLayout?.isRefreshing = false
+        }
+    }
+
+    override fun onFeedPaddingUpdated(topPadding: Int, bottomPadding: Int) {
+        val b = binding ?: return
+        val filterStrip = b.homeFilterStrip
+        val lp = filterStrip.layoutParams as? ViewGroup.MarginLayoutParams
+        if (lp != null && lp.topMargin != topPadding) {
+            lp.topMargin = topPadding
+            filterStrip.layoutParams = lp
+        }
+        val chipsHeight = (48 * resources.displayMetrics.density).toInt()
+        val childTopPad = topPadding + chipsHeight
+        b.swipeRefreshLayout.setProgressViewOffset(
+            true,
+            childTopPad - (16 * resources.displayMetrics.density).toInt(),
+            childTopPad + (48 * resources.displayMetrics.density).toInt()
+        )
+        for (fragment in childFragmentManager.fragments) {
+            if (fragment is org.schabi.newpipe.util.LiquidFeedPaddingListener) {
+                fragment.onFeedPaddingUpdated(topPadding, bottomPadding)
+            }
+        }
+    }
+
+    private fun setupFilterStrip() {
+        val b = binding ?: return
+        val categories = listOf("All", "Live", "Chemistry", "Gaming", "News", "Music", "Podcasts")
+        val adapter = org.schabi.newpipe.views.glass.GlassFilterAdapter(categories) { category, index ->
+            // Chips are feed filters, not search shortcuts. Keep the user on Home and
+            // refresh the connected feed instead of opening a SearchFragment.
+            if (b.pager.currentItem != 0) {
+                b.pager.currentItem = 0
+                b.pager.post { refreshCurrentTab() }
+            } else {
+                refreshCurrentTab()
+            }
+        }
+        b.homeFilterStrip.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(
+            requireContext(),
+            androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL,
+            false
+        )
+        b.homeFilterStrip.adapter = adapter
+        bindFilterScrollListener()
+    }
+
+    private fun bindFilterScrollListener() {
+        val b = binding ?: return
+        val list = pagerAdapter?.primaryFragment?.view
+            ?.findViewById<RecyclerView>(R.id.items_list) ?: return
+        list.clearOnScrollListeners()
+        list.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                when {
+                    dy > 4 -> hideFilterStrip(b.homeFilterStrip)
+                    dy < -4 || !recyclerView.canScrollVertically(-1) -> showFilterStrip(b.homeFilterStrip)
+                }
+            }
+        })
+    }
+
+    private fun hideFilterStrip(strip: View) {
+        strip.animate().translationY(-strip.height.toFloat()).alpha(0f).setDuration(180).start()
+    }
+
+    private fun showFilterStrip(strip: View) {
+        strip.animate().translationY(0f).alpha(1f).setDuration(180).start()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val newYoutubeRestrictedModeEnabled =
+            prefs?.getBoolean(youtubeRestrictedModeEnabledKey, false) ?: false
+        if (youtubeRestrictedModeEnabled != newYoutubeRestrictedModeEnabled || hasTabsChanged) {
+            youtubeRestrictedModeEnabled = newYoutubeRestrictedModeEnabled
+            setupTabs()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        tabsManager?.unsetSavedTabsListener()
+        binding?.pager?.adapter = null
+        binding = null
+    }
+
+    override fun onDestroyView() {
+        binding?.pager?.adapter = null
+        pagerAdapter = null
+        super.onDestroyView()
+        refreshingFragment = null
+        binding = null
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        super.onCreateOptionsMenu(menu, inflater)
+        inflater.inflate(R.menu.menu_main_fragment, menu)
+        activity?.supportActionBar?.setDisplayHomeAsUpEnabled(false)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.action_search) {
+            try {
+                activity?.let {
+                    NavigationHelper.openSearchFragment(
+                        getFM(),
+                        ServiceHelper.getSelectedServiceId(it),
+                        ""
+                    )
+                }
+            } catch (e: Exception) {
+                ErrorUtil.showUiErrorSnackbar(this, "Opening search fragment", e)
+            }
+            return true
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
+    private fun setupTabs() {
+        val manager = tabsManager ?: return
+        val currentBinding = binding ?: return
+
+        tabsList.clear()
+        tabsList.addAll(manager.tabs)
+
+        if (pagerAdapter == null || pagerAdapter?.sameTabs(tabsList) != true) {
+            pagerAdapter = SelectedTabsPagerAdapter(
+                requireContext(),
+                childFragmentManager,
+                tabsList
+            )
+        }
+
+        currentBinding.pager.adapter = null
+        currentBinding.pager.adapter = pagerAdapter
+        hasTabsChanged = false
+    }
+
+    fun commitPlaylistTabs() {
+        pagerAdapter?.localPlaylistFragments?.forEach { it.saveImmediate() }
+    }
+
+    class SelectedTabsPagerAdapter(
+        private val context: Context,
+        fragmentManager: FragmentManager,
+        tabsList: List<Tab>
+    ) : FragmentStatePagerAdapterMenuWorkaround(
+        fragmentManager,
+        BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT
+    ) {
+        var primaryFragment: Fragment? = null
+            private set
+
+        override fun setPrimaryItem(container: ViewGroup, position: Int, item: Any) {
+            super.setPrimaryItem(container, position, item)
+            primaryFragment = item as? Fragment
+        }
+
+        private val internalTabsList: List<Tab> = ArrayList(tabsList)
+        val localPlaylistFragments: MutableList<LocalPlaylistFragment> = ArrayList()
+
+        override fun getItem(position: Int): Fragment {
+            val tab = internalTabsList[position]
+            val fragment: Fragment = try {
+                tab.getFragment(context)
+            } catch (t: Throwable) {
+                BlankFragment(
+                    ErrorInfo(
+                        t,
+                        UserAction.GETTING_MAIN_SCREEN_TAB,
+                        "Tab ${tab.javaClass.simpleName}:${tab.getTabName(context)}"
+                    )
+                )
+            }
+
+            if (fragment is BaseFragment) {
+                fragment.useAsFrontPage(true)
+            }
+
+            if (fragment is LocalPlaylistFragment) {
+                localPlaylistFragments.add(fragment)
+            }
+
+            return fragment
+        }
+
+        override fun getItemPosition(obj: Any): Int {
+            return POSITION_NONE
+        }
+
+        override fun getCount(): Int {
+            return internalTabsList.size
+        }
+
+        fun sameTabs(tabsToCompare: List<Tab>): Boolean {
+            return internalTabsList == tabsToCompare
+        }
+    }
+
+    companion object {
+        private const val MAIN_TAG = "MainFragment"
+        private val DEBUG = org.schabi.newpipe.MainActivity.DEBUG
+    }
+}

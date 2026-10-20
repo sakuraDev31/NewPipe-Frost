@@ -50,6 +50,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.evernote.android.state.State;
 
+import org.schabi.newpipe.MainActivity;
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.databinding.FragmentSearchBinding;
 import org.schabi.newpipe.error.ErrorInfo;
@@ -232,10 +233,13 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         updateService();
         // Add the service name to search string hint
         // to make it more obvious which platform is being searched.
-        if (service != null) {
+        if (service != null && searchEditText != null) {
             searchEditText.setHint(
                     getString(R.string.search_with_service_name,
                             service.getServiceInfo().getName()));
+        }
+        if (activity instanceof org.schabi.newpipe.MainActivity) {
+            ((org.schabi.newpipe.MainActivity) activity).enterSearchMode(searchString != null ? searchString : "");
         }
         showSearchOnStart();
         initSearchListeners();
@@ -324,6 +328,10 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         }
         unsetSearchListeners();
 
+        if (activity instanceof org.schabi.newpipe.MainActivity) {
+            ((org.schabi.newpipe.MainActivity) activity).exitSearchMode(false);
+        }
+
         searchBinding = null;
         super.onDestroyView();
     }
@@ -365,6 +373,16 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         searchBinding.suggestionsList.setAdapter(suggestionListAdapter);
         // animations are just strange and useless, since the suggestions keep changing too much
         searchBinding.suggestionsList.setItemAnimator(null);
+        searchBinding.suggestionsList.setClipToPadding(false);
+        if (activity instanceof MainActivity) {
+            final MainActivity ma = (MainActivity) activity;
+            searchBinding.suggestionsList.setPadding(
+                    searchBinding.suggestionsList.getPaddingLeft(),
+                    ma.getTopHeaderTotalHeight(),
+                    searchBinding.suggestionsList.getPaddingRight(),
+                    ma.getFeedBottomContentPadding()
+            );
+        }
         new ItemTouchHelper(new ItemTouchHelper.Callback() {
             @Override
             public int getMovementFlags(@NonNull final RecyclerView recyclerView,
@@ -385,9 +403,34 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
             }
         }).attachToRecyclerView(searchBinding.suggestionsList);
 
-        searchToolbarContainer = activity.findViewById(R.id.toolbar_search_container);
-        searchEditText = searchToolbarContainer.findViewById(R.id.toolbar_search_edit_text);
-        searchClear = searchToolbarContainer.findViewById(R.id.toolbar_search_clear);
+        searchToolbarContainer = activity.findViewById(R.id.header_search_edit_group);
+        if (searchToolbarContainer == null) {
+            searchToolbarContainer = activity.findViewById(R.id.toolbar_search_container);
+        }
+        if (searchToolbarContainer != null) {
+            searchEditText = searchToolbarContainer.findViewById(R.id.search_edit_text);
+            if (searchEditText == null) {
+                searchEditText = searchToolbarContainer.findViewById(R.id.toolbar_search_edit_text);
+            }
+            searchClear = searchToolbarContainer.findViewById(R.id.btn_search_clear);
+            if (searchClear == null) {
+                searchClear = searchToolbarContainer.findViewById(R.id.toolbar_search_clear);
+            }
+        }
+    }
+
+    @Override
+    public void onFeedPaddingUpdated(final int topPadding, final int bottomPadding) {
+        super.onFeedPaddingUpdated(topPadding, bottomPadding);
+        if (searchBinding != null && searchBinding.suggestionsList != null) {
+            searchBinding.suggestionsList.setClipToPadding(false);
+            searchBinding.suggestionsList.setPadding(
+                    searchBinding.suggestionsList.getPaddingLeft(),
+                    topPadding,
+                    searchBinding.suggestionsList.getPaddingRight(),
+                    bottomPadding
+            );
+        }
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -446,7 +489,8 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         final ActionBar supportActionBar = activity.getSupportActionBar();
         if (supportActionBar != null) {
             supportActionBar.setDisplayShowTitleEnabled(false);
-            supportActionBar.setDisplayHomeAsUpEnabled(true);
+            // The custom header already owns the single back button.
+            supportActionBar.setDisplayHomeAsUpEnabled(false);
         }
 
         int itemId = 0;

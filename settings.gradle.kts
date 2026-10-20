@@ -10,6 +10,7 @@ pluginManagement {
         gradlePluginPortal()
         google()
         mavenCentral()
+        maven(url = "https://repo1.maven.org/maven2")
     }
 }
 
@@ -18,6 +19,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven(url = "https://repo1.maven.org/maven2")
         maven(url = "https://jitpack.io")
         maven(url = "https://repo.clojars.org")
     }

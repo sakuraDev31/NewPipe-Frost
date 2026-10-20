@@ -43,7 +43,6 @@ import org.schabi.newpipe.player.playqueue.PlayQueueItemHolder;
 import org.schabi.newpipe.player.playqueue.PlayQueueItemTouchCallback;
 import org.schabi.newpipe.util.Localization;
 import org.schabi.newpipe.util.NavigationHelper;
-import org.schabi.newpipe.util.PermissionHelper;
 import org.schabi.newpipe.util.ServiceHelper;
 import org.schabi.newpipe.util.ThemeHelper;
 
@@ -151,10 +150,8 @@ public final class PlayQueueActivity extends AppCompatActivity
             NavigationHelper.playOnMainPlayer(this, player.getPlayQueue(), true);
             return true;
         } else if (itemId == R.id.action_switch_popup) {
-            if (PermissionHelper.isPopupEnabledElseAsk(this)) {
-                this.player.setRecovery();
-                NavigationHelper.playOnPopupPlayer(this, player.getPlayQueue(), true);
-            }
+            this.player.setRecovery();
+            NavigationHelper.playOnPopupPlayer(this, player.getPlayQueue(), true);
             return true;
         } else if (itemId == R.id.action_switch_background) {
             this.player.setRecovery();

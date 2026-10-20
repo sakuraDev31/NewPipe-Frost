@@ -13,12 +13,15 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.evernote.android.state.State;
 import com.google.android.material.snackbar.Snackbar;
 
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
+import org.schabi.newpipe.util.ServiceHelper;
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.database.LocalItem;
 import org.schabi.newpipe.database.stream.StreamStatisticsEntry;
@@ -156,6 +159,51 @@ public class StatisticsPlaylistFragment
                 }
             }
         });
+
+        final ItemTouchHelper.SimpleCallback swipeCallback =
+                new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
+                    @Override
+                    public int getSwipeDirs(@NonNull final RecyclerView recyclerView,
+                                            @NonNull final RecyclerView.ViewHolder viewHolder) {
+                        if (viewHolder.getBindingAdapterPosition() == 0 && headerBinding != null) {
+                            return 0;
+                        }
+                        return super.getSwipeDirs(recyclerView, viewHolder);
+                    }
+
+                    @Override
+                    public boolean onMove(@NonNull final RecyclerView recyclerView,
+                                          @NonNull final RecyclerView.ViewHolder viewHolder,
+                                          @NonNull final RecyclerView.ViewHolder target) {
+                        return false;
+                    }
+
+                    @Override
+                    public void onSwiped(@NonNull final RecyclerView.ViewHolder viewHolder,
+                                         final int direction) {
+                        final int position = viewHolder.getBindingAdapterPosition();
+                        if (position == RecyclerView.NO_POSITION || itemListAdapter == null) {
+                            return;
+                        }
+                        final int dataIndex = position - (headerBinding != null ? 1 : 0);
+                        if (dataIndex < 0 || dataIndex >= itemListAdapter.getItemsList().size()) {
+                            return;
+                        }
+                        final LocalItem item = itemListAdapter.getItemsList().get(dataIndex);
+                        if (item instanceof StreamStatisticsEntry) {
+                            final StreamStatisticsEntry entry = (StreamStatisticsEntry) item;
+                            disposables.add(recordManager.deleteStreamHistoryAndState(entry.getStreamEntity().getUid())
+                                    .observeOn(AndroidSchedulers.mainThread())
+                                    .subscribe(() -> {
+                                        itemListAdapter.removeItem(entry);
+                                        Snackbar.make(itemsList, R.string.deleted, Snackbar.LENGTH_SHORT).show();
+                                    }, error -> {
+                                        itemListAdapter.notifyItemChanged(position);
+                                    }));
+                        }
+                    }
+                };
+        new ItemTouchHelper(swipeCallback).attachToRecyclerView(itemsList);
     }
 
     @Override
@@ -277,6 +325,19 @@ public class StatisticsPlaylistFragment
         PlayButtonHelper.initPlaylistControlClickListener(activity, playlistControlBinding, this);
 
         headerBinding.sortButton.setOnClickListener(view -> toggleSortMode());
+        if (headerBinding.historySearchBar != null) {
+            headerBinding.historySearchBar.setOnClickListener(v -> {
+                try {
+                    NavigationHelper.openSearchFragment(
+                            getFM(),
+                            ServiceHelper.getSelectedServiceId(requireContext()),
+                            ""
+                    );
+                } catch (final Exception e) {
+                    // ignore
+                }
+            });
+        }
 
         hideLoading();
     }

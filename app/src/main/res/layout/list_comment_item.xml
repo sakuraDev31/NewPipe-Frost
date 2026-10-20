@@ -41,6 +41,7 @@
         android:ellipsize="end"
         android:lines="1"
         android:textAppearance="?android:attr/textAppearanceSmall"
+        android:textColor="@color/liquid_glass_text_secondary"
         android:textSize="@dimen/comment_item_title_text_size"
         tools:text="Author Name, Lorem ipsum • 5 months ago" />
 
@@ -52,6 +53,7 @@
         android:layout_marginTop="6dp"
         android:layout_toEndOf="@+id/itemThumbnailView"
         android:textAppearance="?android:attr/textAppearanceLarge"
+        android:textColor="@color/liquid_glass_text_title"
         android:textSize="@dimen/comment_item_content_text_size"
         tools:text="@tools:sample/lorem/random[1]" />
 
@@ -63,7 +65,8 @@
         android:layout_alignBottom="@+id/replies_button"
         android:layout_toEndOf="@+id/itemThumbnailView"
         android:contentDescription="@string/detail_likes_img_view_description"
-        android:src="@drawable/ic_thumb_up" />
+        android:src="@drawable/ic_thumb_up"
+        app:tint="@color/liquid_glass_crimson_accent" />
 
     <org.schabi.newpipe.views.NewPipeTextView
         android:id="@+id/detail_thumbs_up_count_view"
@@ -76,6 +79,7 @@
         android:gravity="center"
         android:lines="1"
         android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textColor="@color/liquid_glass_text_secondary"
         android:textSize="@dimen/video_item_detail_likes_text_size"
         tools:text="12M" />
 
@@ -88,7 +92,8 @@
         android:layout_marginStart="@dimen/video_item_detail_heart_margin"
         android:layout_toEndOf="@+id/detail_thumbs_up_count_view"
         android:contentDescription="@string/detail_heart_img_view_description"
-        android:src="@drawable/ic_heart" />
+        android:src="@drawable/ic_heart"
+        app:tint="@color/liquid_glass_crimson_accent" />
 
     <Button
         android:id="@+id/replies_button"
@@ -99,6 +104,9 @@
         android:layout_alignParentEnd="true"
         android:layout_marginStart="@dimen/video_item_detail_heart_margin"
         android:minHeight="0dp"
+        android:textColor="@color/liquid_glass_crimson_accent"
+        android:textSize="12sp"
+        android:textStyle="bold"
         tools:text="543 replies" />
 
 </RelativeLayout>

@@ -21,9 +21,12 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
 import android.database.ContentObserver;
 import android.graphics.Color;
-import android.graphics.Rect;
+import android.graphics.Bitmap;
+import android.graphics.RenderEffect;
+import android.graphics.Shader;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -32,28 +35,27 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.util.Log;
-import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
+import android.view.PixelCopy;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
-import android.widget.RelativeLayout;
 import android.widget.Toast;
 
-import androidx.annotation.AttrRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.StringRes;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.appcompat.widget.Toolbar;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
 import androidx.preference.PreferenceManager;
 
 import com.evernote.android.state.State;
@@ -61,7 +63,6 @@ import com.google.android.exoplayer2.PlaybackException;
 import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.tabs.TabLayout;
 
 import org.schabi.newpipe.App;
 import org.schabi.newpipe.R;
@@ -84,18 +85,17 @@ import org.schabi.newpipe.extractor.stream.StreamType;
 import org.schabi.newpipe.extractor.stream.VideoStream;
 import org.schabi.newpipe.fragments.BackPressable;
 import org.schabi.newpipe.fragments.BaseStateFragment;
-import org.schabi.newpipe.fragments.EmptyFragment;
 import org.schabi.newpipe.fragments.MainFragment;
-import org.schabi.newpipe.fragments.list.comments.CommentsFragment;
-import org.schabi.newpipe.fragments.list.videos.RelatedItemsFragment;
 import org.schabi.newpipe.ktx.AnimationType;
 import org.schabi.newpipe.local.dialog.PlaylistDialog;
 import org.schabi.newpipe.local.history.HistoryRecordManager;
 import org.schabi.newpipe.local.playlist.LocalPlaylistFragment;
+import org.schabi.newpipe.MainActivity;
 import org.schabi.newpipe.player.Player;
 import org.schabi.newpipe.player.PlayerIntentType;
 import org.schabi.newpipe.player.PlayerService;
 import org.schabi.newpipe.player.PlayerType;
+import org.schabi.newpipe.views.glass.PlayerSheetController;
 import org.schabi.newpipe.player.event.OnKeyDownListener;
 import org.schabi.newpipe.player.event.PlayerServiceExtendedEventListener;
 import org.schabi.newpipe.player.helper.PlayerHelper;
@@ -115,12 +115,10 @@ import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.PermissionHelper;
 import org.schabi.newpipe.util.PlayButtonHelper;
 import org.schabi.newpipe.util.StreamTypeUtil;
-import org.schabi.newpipe.util.ThemeHelper;
 import org.schabi.newpipe.util.external_communication.KoreUtils;
 import org.schabi.newpipe.util.external_communication.ShareUtils;
 import org.schabi.newpipe.util.image.CoilHelper;
 
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -142,7 +140,6 @@ public final class VideoDetailFragment
         OnKeyDownListener {
     public static final String KEY_SWITCHING_PLAYERS = "switching_players";
 
-    private static final float MAX_OVERLAY_ALPHA = 1.0f;
     private static final float MAX_PLAYER_HEIGHT = 0.7f;
 
     public static final String ACTION_SHOW_MAIN_PLAYER =
@@ -156,23 +153,17 @@ public final class VideoDetailFragment
     public static final String ACTION_VIDEO_FRAGMENT_STOPPED =
             App.PACKAGE_NAME + ".VideoDetailFragment.ACTION_VIDEO_FRAGMENT_STOPPED";
 
-    private static final String COMMENTS_TAB_TAG = "COMMENTS";
-    private static final String RELATED_TAB_TAG = "NEXT VIDEO";
-    private static final String DESCRIPTION_TAB_TAG = "DESCRIPTION TAB";
-    private static final String EMPTY_TAB_TAG = "EMPTY TAB";
-
     // tabs
     private boolean showComments;
     private boolean showRelatedItems;
     private boolean showDescription;
-    private String selectedTabTag;
-    @AttrRes
-    @NonNull
-    final List<Integer> tabIcons = new ArrayList<>();
-    @StringRes
-    @NonNull
-    final List<Integer> tabContentDescriptions = new ArrayList<>();
+    private boolean descriptionExpanded = false;
     private boolean tabSettingsChanged = false;
+    private FragmentManager.OnBackStackChangedListener playerBackStackListener;
+    private final Handler ambientHandler = new Handler(Looper.getMainLooper());
+    private boolean ambientCapturePending;
+    private final Runnable ambientFrame = this::captureAmbientFrame;
+
     private int lastAppBarVerticalOffset = Integer.MAX_VALUE; // prevents useless updates
 
     private final SharedPreferences.OnSharedPreferenceChangeListener preferenceChangeListener =
@@ -225,7 +216,6 @@ public final class VideoDetailFragment
 
     private FragmentVideoDetailBinding binding;
 
-    private TabAdapter pageAdapter;
 
     private ContentObserver settingsContentObserver;
     @Nullable
@@ -321,8 +311,6 @@ public final class VideoDetailFragment
         showComments = prefs.getBoolean(getString(R.string.show_comments_key), true);
         showRelatedItems = prefs.getBoolean(getString(R.string.show_next_video_key), true);
         showDescription = prefs.getBoolean(getString(R.string.show_description_key), true);
-        selectedTabTag = prefs.getString(
-                getString(R.string.stream_info_selected_tab_key), COMMENTS_TAB_TAG);
         prefs.registerOnSharedPreferenceChangeListener(preferenceChangeListener);
 
         setupBroadcastReceiver();
@@ -331,7 +319,11 @@ public final class VideoDetailFragment
             @Override
             public void onChange(final boolean selfChange) {
                 if (activity != null && !globalScreenOrientationLocked(activity)) {
-                    activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+                    if (isPlayerAvailable() && isFullscreen()) {
+                        activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                    } else {
+                        activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                    }
                 }
             }
         };
@@ -350,15 +342,11 @@ public final class VideoDetailFragment
     @Override
     public void onPause() {
         super.onPause();
+        ambientHandler.removeCallbacks(ambientFrame);
         if (currentWorker != null) {
             currentWorker.dispose();
         }
         restoreDefaultBrightness();
-        PreferenceManager.getDefaultSharedPreferences(requireContext())
-                .edit()
-                .putString(getString(R.string.stream_info_selected_tab_key),
-                        pageAdapter.getItemTitle(binding.viewPager.getCurrentItem()))
-                .apply();
     }
 
     @Override
@@ -369,6 +357,8 @@ public final class VideoDetailFragment
         }
 
         activity.sendBroadcast(new Intent(ACTION_VIDEO_FRAGMENT_RESUMED));
+        ambientHandler.removeCallbacks(ambientFrame);
+        ambientHandler.post(ambientFrame);
 
         updateOverlayPlayQueueButtonVisibility();
 
@@ -434,6 +424,24 @@ public final class VideoDetailFragment
 
     @Override
     public void onDestroyView() {
+        if (activity instanceof MainActivity) {
+            final PlayerSheetController controller = ((MainActivity) activity).getPlayerSheetController();
+            if (controller != null) {
+                controller.unbindPlayerViews();
+            }
+        }
+        if (playerBackStackListener != null) {
+            getParentFragmentManager().removeOnBackStackChangedListener(playerBackStackListener);
+            playerBackStackListener = null;
+        }
+        if (bottomSheetBehavior != null && bottomSheetCallback != null) {
+            bottomSheetBehavior.removeBottomSheetCallback(bottomSheetCallback);
+        }
+        ambientHandler.removeCallbacks(ambientFrame);
+        if (binding != null) {
+            CoilUtils.dispose(binding.detailAmbientBackdrop);
+            binding.detailAmbientBackdrop.setImageDrawable(null);
+        }
         super.onDestroyView();
         binding = null;
     }
@@ -462,6 +470,11 @@ public final class VideoDetailFragment
 
     private void setOnClickListeners() {
         binding.detailTitleRootLayout.setOnClickListener(v -> toggleTitleAndSecondaryControls());
+        binding.detailDescriptionPreview.setOnClickListener(v -> toggleDescriptionPreview());
+        binding.detailCommentsEntry.setOnClickListener(v ->
+                showDetailPanel(VideoInfoSheet.COMMENTS));
+        binding.detailRelatedEntry.setOnClickListener(v ->
+                showDetailPanel(VideoInfoSheet.RELATED));
         binding.detailUploaderRootLayout.setOnClickListener(makeOnClickListener(info -> {
             if (isEmpty(info.getSubChannelUrl())) {
                 if (!isEmpty(info.getUploaderUrl())) {
@@ -523,9 +536,9 @@ public final class VideoDetailFragment
 
         final View.OnClickListener overlayListener = v -> bottomSheetBehavior
                 .setState(BottomSheetBehavior.STATE_EXPANDED);
+        binding.overlayLayout.setOnClickListener(overlayListener);
         binding.overlayThumbnail.setOnClickListener(overlayListener);
         binding.overlayMetadataLayout.setOnClickListener(overlayListener);
-        binding.overlayButtonsLayout.setOnClickListener(overlayListener);
         binding.overlayCloseButton.setOnClickListener(v -> bottomSheetBehavior
                 .setState(BottomSheetBehavior.STATE_HIDDEN));
         binding.overlayPlayQueueButton.setOnClickListener(v -> openPlayQueue(requireContext()));
@@ -604,12 +617,22 @@ public final class VideoDetailFragment
                     VideoPlayerUi.DEFAULT_CONTROLS_DURATION, 180);
             binding.detailSecondaryControlPanel.setVisibility(View.VISIBLE);
         } else {
-            binding.detailVideoTitleView.setMaxLines(1);
+            binding.detailVideoTitleView.setMaxLines(2);
             animateRotation(binding.detailToggleSecondaryControlsView,
                     VideoPlayerUi.DEFAULT_CONTROLS_DURATION, 0);
             binding.detailSecondaryControlPanel.setVisibility(View.GONE);
         }
         // view pager height has changed, update the tab layout
+        updateTabLayoutVisibility();
+    }
+
+    private void toggleDescriptionPreview() {
+        descriptionExpanded = !descriptionExpanded;
+        binding.detailDescriptionPreview.setMaxLines(descriptionExpanded ? Integer.MAX_VALUE : 3);
+        binding.detailDescriptionPreview.setEllipsize(descriptionExpanded
+                ? null : android.text.TextUtils.TruncateAt.END);
+        binding.detailDescriptionPreview.setContentDescription(getString(
+                descriptionExpanded ? R.string.collapse_description : R.string.expand_description));
         updateTabLayoutVisibility();
     }
 
@@ -621,9 +644,7 @@ public final class VideoDetailFragment
     protected void initViews(final View rootView, final Bundle savedInstanceState) {
         super.initViews(rootView, savedInstanceState);
 
-        pageAdapter = new TabAdapter(getChildFragmentManager());
-        binding.viewPager.setAdapter(pageAdapter);
-        binding.tabLayout.setupWithViewPager(binding.viewPager);
+        updateTabLayoutVisibility();
 
         binding.detailThumbnailRootLayout.requestFocus();
 
@@ -676,6 +697,23 @@ public final class VideoDetailFragment
             }
         });
 
+        final eightbitlab.com.blurview.BlurTarget blurTarget =
+                activity.findViewById(R.id.blur_target);
+        if (blurTarget != null) {
+            org.schabi.newpipe.views.glass.GlassDrawable.setupBlurView(
+                    binding.miniBackdrop, blurTarget,
+                    org.schabi.newpipe.views.glass.GlassDrawable.RADIUS_20);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            final float radius = DeviceUtils.dpToPx(64, requireContext());
+            binding.detailAmbientBackdrop.setRenderEffect(RenderEffect.createBlurEffect(
+                    radius, radius, Shader.TileMode.CLAMP));
+        }
+        binding.getRoot().addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (binding != null && r - l != or - ol) {
+                setHeightThumbnail();
+            }
+        });
         setupBottomPlayer();
         if (!playerHolder.isBound()) {
             setHeightThumbnail();
@@ -707,11 +745,8 @@ public final class VideoDetailFragment
             Log.d(TAG, "onBackPressed() called");
         }
 
-        // If we are in fullscreen mode just exit from it via first back press
-        if (isFullscreen()) {
-            if (!DeviceUtils.isTablet(activity)) {
-                player.pause();
-            }
+        // If we are in fullscreen mode or in landscape, exit via first back press
+        if (isFullscreen() || (activity != null && DeviceUtils.isLandscape(activity))) {
             restoreDefaultOrientation();
             setAutoPlay(false);
             return true;
@@ -891,87 +926,29 @@ public final class VideoDetailFragment
     //////////////////////////////////////////////////////////////////////////*/
 
     private void initTabs() {
-        if (pageAdapter.getCount() != 0) {
-            selectedTabTag = pageAdapter.getItemTitle(binding.viewPager.getCurrentItem());
-        }
-        pageAdapter.clearAllItems();
-        tabIcons.clear();
-        tabContentDescriptions.clear();
-
-        if (shouldShowComments()) {
-            pageAdapter.addFragment(
-                    CommentsFragment.getInstance(serviceId, url, title), COMMENTS_TAB_TAG);
-            tabIcons.add(R.drawable.ic_comment);
-            tabContentDescriptions.add(R.string.comments_tab_description);
-        }
-
-        if (showRelatedItems && binding.relatedItemsLayout == null) {
-            // temp empty fragment. will be updated in handleResult
-            pageAdapter.addFragment(EmptyFragment.newInstance(false), RELATED_TAB_TAG);
-            tabIcons.add(R.drawable.ic_art_track);
-            tabContentDescriptions.add(R.string.related_items_tab_description);
-        }
-
-        if (showDescription) {
-            // temp empty fragment. will be updated in handleResult
-            pageAdapter.addFragment(EmptyFragment.newInstance(false), DESCRIPTION_TAB_TAG);
-            tabIcons.add(R.drawable.ic_description);
-            tabContentDescriptions.add(R.string.description_tab_description);
-        }
-
-        if (pageAdapter.getCount() == 0) {
-            pageAdapter.addFragment(EmptyFragment.newInstance(true), EMPTY_TAB_TAG);
-        }
-        pageAdapter.notifyDataSetUpdate();
-
-        if (pageAdapter.getCount() >= 2) {
-            final int position = pageAdapter.getItemPositionByTitle(selectedTabTag);
-            if (position != -1) {
-                binding.viewPager.setCurrentItem(position);
-            }
-            updateTabIconsAndContentDescriptions();
-        }
-        // the page adapter now contains tabs: show the tab layout
         updateTabLayoutVisibility();
-    }
-
-    /**
-     * To be called whenever {@link #pageAdapter} is modified, since that triggers a refresh in
-     * {@link FragmentVideoDetailBinding#tabLayout} resetting all tab's icons and content
-     * descriptions. This reads icons from {@link #tabIcons} and content descriptions from
-     * {@link #tabContentDescriptions}, which are all set in {@link #initTabs()}.
-     */
-    private void updateTabIconsAndContentDescriptions() {
-        for (int i = 0; i < tabIcons.size(); ++i) {
-            final TabLayout.Tab tab = binding.tabLayout.getTabAt(i);
-            if (tab != null) {
-                tab.setIcon(tabIcons.get(i));
-                tab.setContentDescription(tabContentDescriptions.get(i));
-            }
-        }
     }
 
     private void updateTabs(@NonNull final StreamInfo info) {
-        if (showRelatedItems) {
-            if (binding.relatedItemsLayout == null) { // phone
-                pageAdapter.updateItem(RELATED_TAB_TAG, RelatedItemsFragment.getInstance(info));
-            } else { // tablet + TV
-                getChildFragmentManager().beginTransaction()
-                        .replace(R.id.relatedItemsLayout, RelatedItemsFragment.getInstance(info))
-                        .commitAllowingStateLoss();
-                binding.relatedItemsLayout.setVisibility(isFullscreen() ? View.GONE : View.VISIBLE);
-            }
-        }
-
-        if (showDescription) {
-            pageAdapter.updateItem(DESCRIPTION_TAB_TAG, new DescriptionFragment(info));
-        }
-
-        binding.viewPager.setVisibility(View.VISIBLE);
-        // make sure the tab layout is visible
+        final String description = info.getDescription() == null
+                ? "" : info.getDescription().content();
+        binding.detailDescriptionPreview.setText(isEmpty(description)
+                ? getString(R.string.description_tab_description)
+                : androidx.core.text.HtmlCompat.fromHtml(description,
+                        androidx.core.text.HtmlCompat.FROM_HTML_MODE_COMPACT));
+        binding.detailDescriptionPreview.setVisibility(showDescription ? View.VISIBLE : View.GONE);
+        binding.detailCommentsEntry.setVisibility(shouldShowComments() ? View.VISIBLE : View.GONE);
+        binding.detailRelatedEntry.setVisibility(showRelatedItems ? View.VISIBLE : View.GONE);
         updateTabLayoutVisibility();
-        pageAdapter.notifyDataSetUpdate();
-        updateTabIconsAndContentDescriptions();
+    }
+
+    private void showDetailPanel(final String panel) {
+        if (url == null || getChildFragmentManager().isStateSaved()
+                || getChildFragmentManager().findFragmentByTag(VideoInfoSheet.TAG) != null) {
+            return;
+        }
+        VideoInfoSheet.newInstance(panel, serviceId, url, title)
+                .show(getChildFragmentManager(), VideoInfoSheet.TAG);
     }
 
     private boolean shouldShowComments() {
@@ -986,61 +963,28 @@ public final class VideoDetailFragment
     }
 
     public void updateTabLayoutVisibility() {
-
-        if (binding == null) {
-            //If binding is null we do not need to and should not do anything with its object(s)
-            return;
-        }
-
-        if (pageAdapter.getCount() < 2 || binding.viewPager.getVisibility() != View.VISIBLE) {
-            // hide tab layout if there is only one tab or if the view pager is also hidden
+        if (binding != null) {
             binding.tabLayout.setVisibility(View.GONE);
-        } else {
-            // call `post()` to be sure `viewPager.getHitRect()`
-            // is up to date and not being currently recomputed
-            binding.tabLayout.post(() -> {
-                final var activity = getActivity();
-                if (activity != null) {
-                    final Rect pagerHitRect = new Rect();
-                    binding.viewPager.getHitRect(pagerHitRect);
-
-                    final int height = DeviceUtils.getWindowHeight(activity.getWindowManager());
-                    final int viewPagerVisibleHeight = height - pagerHitRect.top;
-                    // see TabLayout.DEFAULT_HEIGHT, which is equal to 48dp
-                    final float tabLayoutHeight = TypedValue.applyDimension(
-                            TypedValue.COMPLEX_UNIT_DIP, 48, getResources().getDisplayMetrics());
-
-                    if (viewPagerVisibleHeight > tabLayoutHeight * 2) {
-                        // no translation at all when viewPagerVisibleHeight > tabLayout.height * 3
-                        binding.tabLayout.setTranslationY(
-                                Math.max(0, tabLayoutHeight * 3 - viewPagerVisibleHeight));
-                        binding.tabLayout.setVisibility(View.VISIBLE);
-                    } else {
-                        // view pager is not visible enough
-                        binding.tabLayout.setVisibility(View.GONE);
-                    }
-                }
-            });
+            binding.viewPager.setVisibility(View.GONE);
+            if (binding.relatedItemsLayout != null) {
+                binding.relatedItemsLayout.setVisibility(View.GONE);
+            }
         }
     }
 
     public void scrollToTop() {
-        binding.appBarLayout.setExpanded(true, true);
-        // notify tab layout of scrolling
-        updateTabLayoutVisibility();
+        binding.detailInfoScroll.smoothScrollTo(0, 0);
     }
 
     public void scrollToComment(final CommentsInfoItem comment) {
-        final int commentsTabPos = pageAdapter.getItemPositionByTitle(COMMENTS_TAB_TAG);
-        final Fragment fragment = pageAdapter.getItem(commentsTabPos);
-        if (!(fragment instanceof CommentsFragment)) {
-            return;
-        }
-
-        // unexpand the app bar only if scrolling to the comment succeeded
-        if (((CommentsFragment) fragment).scrollToComment(comment)) {
-            binding.appBarLayout.setExpanded(false, false);
-            binding.viewPager.setCurrentItem(commentsTabPos, false);
+        final Fragment panel = getChildFragmentManager().findFragmentByTag(VideoInfoSheet.TAG);
+        if (panel instanceof VideoInfoSheet) {
+            ((VideoInfoSheet) panel).scrollToComment(comment);
+        } else if (url != null && !getChildFragmentManager().isStateSaved()) {
+            final VideoInfoSheet sheet = VideoInfoSheet.newInstance(
+                    VideoInfoSheet.COMMENTS, serviceId, url, title);
+            sheet.scrollToComment(comment);
+            sheet.show(getChildFragmentManager(), VideoInfoSheet.TAG);
         }
     }
 
@@ -1080,10 +1024,6 @@ public final class VideoDetailFragment
     }
 
     private void openPopupPlayer(final boolean append) {
-        if (!PermissionHelper.isPopupEnabledElseAsk(activity)) {
-            return;
-        }
-
         // See UI changes while remote playQueue changes
         if (!isPlayerAvailable()) {
             playerHolder.startService(false, this);
@@ -1276,7 +1216,7 @@ public final class VideoDetailFragment
     }
 
     private void tryAddVideoPlayerView() {
-        if (isPlayerAvailable() && getView() != null) {
+        if (binding != null && isPlayerAvailable() && getView() != null) {
             // Setup the surface view height, so that it fits the video correctly; this is done also
             // here, and not only in the Handler, to avoid a choppy fullscreen rotation animation.
             setHeightThumbnail();
@@ -1285,7 +1225,7 @@ public final class VideoDetailFragment
         // do all the null checks in the posted lambda, too, since the player, the binding and the
         // view could be set or unset before the lambda gets executed on the next main thread cycle
         new Handler(Looper.getMainLooper()).post(() -> {
-            if (!isPlayerAvailable() || getView() == null) {
+            if (binding == null || !isPlayerAvailable() || getView() == null) {
                 return;
             }
 
@@ -1305,6 +1245,11 @@ public final class VideoDetailFragment
                         binding.playerPlaceholder.addView(playerUi.getBinding().getRoot());
                     }
                     playerUi.setupVideoSurfaceIfNeeded();
+                    if (bottomSheetState == BottomSheetBehavior.STATE_COLLAPSED) {
+                        CoilUtils.dispose(binding.overlayThumbnail);
+                        binding.overlayThumbnail.setImageDrawable(null);
+                        playerUiHideControls();
+                    }
                 }
             });
         });
@@ -1375,15 +1320,70 @@ public final class VideoDetailFragment
     }
 
     private void setHeightThumbnail(final int newHeight, final DisplayMetrics metrics) {
-        binding.detailThumbnailImageView.setLayoutParams(
-                new FrameLayout.LayoutParams(
-                        RelativeLayout.LayoutParams.MATCH_PARENT, newHeight));
-        binding.detailThumbnailImageView.setMinimumHeight(newHeight);
+        final boolean minimized = lastStableBottomSheetState == BottomSheetBehavior.STATE_COLLAPSED;
+        final int miniWidth = DeviceUtils.dpToPx(96, requireContext());
+        final int miniHeight = DeviceUtils.dpToPx(52, requireContext());
+        final int videoHeight = minimized ? miniHeight : (isFullscreen() ? FrameLayout.LayoutParams.MATCH_PARENT : newHeight);
+        final int videoWidth;
+        if (minimized) {
+            videoWidth = miniWidth;
+        } else if (isFullscreen() || binding.detailMainContent.getWidth() == 0) {
+            videoWidth = FrameLayout.LayoutParams.MATCH_PARENT;
+        } else {
+            videoWidth = binding.detailMainContent.getWidth();
+        }
+        final FrameLayout.LayoutParams videoParams = new FrameLayout.LayoutParams(
+                videoWidth, videoHeight);
+        if (minimized) {
+            videoParams.topMargin = DeviceUtils.dpToPx(8, requireContext());
+            videoParams.setMarginStart(DeviceUtils.dpToPx(16, requireContext()));
+        } else if (isFullscreen()) {
+            videoParams.topMargin = 0;
+            videoParams.bottomMargin = 0;
+            videoParams.setMarginStart(0);
+            videoParams.setMarginEnd(0);
+        }
+        binding.detailThumbnailRootLayout.setLayoutParams(videoParams);
+        binding.detailThumbnailRootLayout.setBackgroundResource(minimized
+                ? android.R.color.transparent : android.R.color.black);
+        binding.detailThumbnailRootLayout.setClipToOutline(minimized);
+        if (minimized) {
+            final ViewGroup.LayoutParams overlayParams = binding.overlayLayout.getLayoutParams();
+            overlayParams.height = getResources().getDimensionPixelSize(R.dimen.mini_player_height);
+            binding.overlayLayout.setLayoutParams(overlayParams);
+            final var insets = androidx.core.view.ViewCompat.getRootWindowInsets(binding.getRoot());
+            final int bottomInset = insets == null ? 0 : insets.getInsets(
+                    androidx.core.view.WindowInsetsCompat.Type.systemBars()).bottom;
+            if (bottomSheetBehavior != null) {
+                final org.schabi.newpipe.views.glass.PlayerSheetController controller =
+                        activity instanceof MainActivity
+                                ? ((MainActivity) activity).getPlayerSheetController()
+                                : null;
+                if (controller != null) {
+                    controller.updatePeekHeight();
+                } else {
+                    bottomSheetBehavior.setPeekHeight(
+                            getResources().getDimensionPixelSize(R.dimen.mini_player_height) + bottomInset);
+                }
+            }
+        }
+        binding.detailThumbnailImageView.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        binding.detailThumbnailImageView.setMinimumHeight(0);
+        final ViewGroup.MarginLayoutParams contentParams =
+                (ViewGroup.MarginLayoutParams) binding.detailMainContent.getLayoutParams();
+        contentParams.topMargin = minimized || isFullscreen() ? 0 : videoHeight;
+        binding.detailMainContent.setLayoutParams(contentParams);
+        binding.detailMainContent.setVisibility(minimized || isFullscreen()
+                ? View.INVISIBLE : View.VISIBLE);
+        if (binding.relatedItemsLayout != null) {
+            binding.relatedItemsLayout.setVisibility(View.GONE);
+        }
         if (isPlayerAvailable()) {
             final int maxHeight = (int) (metrics.heightPixels * MAX_PLAYER_HEIGHT);
             player.UIs().get(VideoPlayerUi.class).ifPresent(ui ->
-                    ui.getBinding().surfaceView.setHeights(newHeight,
-                            ui.isFullscreen() ? newHeight : maxHeight));
+                    ui.getBinding().surfaceView.setHeights(videoHeight,
+                            minimized || ui.isFullscreen() ? videoHeight : maxHeight));
         }
     }
 
@@ -1474,12 +1474,9 @@ public final class VideoDetailFragment
             toggleFullscreenIfInFullscreenMode();
         }
 
-        // This will show systemUI and pause the player.
-        // User can tap on Play button and video will be in fullscreen mode again
-        // Note for tablet: trying to avoid orientation changes since it's not easy
-        // to physically rotate the tablet every time
+        // Non-player screens must always be displayed in portrait
         if (activity != null && !DeviceUtils.isTablet(activity)) {
-            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         }
     }
 
@@ -1503,8 +1500,11 @@ public final class VideoDetailFragment
         binding.positionView.setVisibility(View.GONE);
 
         binding.detailVideoTitleView.setText(title);
-        binding.detailVideoTitleView.setMaxLines(1);
+        binding.detailVideoTitleView.setMaxLines(2);
         animate(binding.detailVideoTitleView, true, 0);
+        descriptionExpanded = false;
+        binding.detailDescriptionPreview.setMaxLines(3);
+        binding.detailDescriptionPreview.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
         binding.detailToggleSecondaryControlsView.setVisibility(View.GONE);
         binding.detailTitleRootLayout.setClickable(false);
@@ -1512,14 +1512,15 @@ public final class VideoDetailFragment
 
         if (binding.relatedItemsLayout != null) {
             if (showRelatedItems) {
-                binding.relatedItemsLayout.setVisibility(
-                        isFullscreen() ? View.GONE : View.INVISIBLE);
+                binding.relatedItemsLayout.setVisibility(View.GONE);
             } else {
                 binding.relatedItemsLayout.setVisibility(View.GONE);
             }
         }
 
         CoilUtils.dispose(binding.detailThumbnailImageView);
+        CoilUtils.dispose(binding.detailAmbientBackdrop);
+        binding.detailAmbientBackdrop.setImageDrawable(null);
         CoilUtils.dispose(binding.detailSubChannelThumbnailView);
         CoilUtils.dispose(binding.overlayThumbnail);
         CoilUtils.dispose(binding.detailUploaderThumbnailView);
@@ -1614,6 +1615,8 @@ public final class VideoDetailFragment
 
         checkUpdateProgressInfo(info);
         CoilHelper.INSTANCE.loadDetailsThumbnail(binding.detailThumbnailImageView,
+                info.getThumbnails());
+        CoilHelper.INSTANCE.loadDetailsThumbnail(binding.detailAmbientBackdrop,
                 info.getThumbnails());
         showMetaInfoInTextView(info.getMetaInfo(), binding.detailMetaInfoTextView,
                 binding.detailMetaInfoSeparator, disposables);
@@ -1758,10 +1761,13 @@ public final class VideoDetailFragment
         final int progressDifference = Math.abs(binding.positionView.getProgress()
                 - progressSeconds);
         binding.positionView.setMax(durationSeconds);
+        binding.overlayProgressBar.setMax(durationSeconds);
         if (progressDifference > 2) {
             binding.positionView.setProgressAnimated(progressSeconds);
+            binding.overlayProgressBar.setProgress(progressSeconds);
         } else {
             binding.positionView.setProgress(progressSeconds);
+            binding.overlayProgressBar.setProgress(progressSeconds);
         }
         final String position = Localization.getDurationString(progressSeconds);
         if (position != binding.detailPositionView.getText()) {
@@ -1828,7 +1834,13 @@ public final class VideoDetailFragment
                                  final int repeatMode,
                                  final boolean shuffled,
                                  final PlaybackParameters parameters) {
+        if (binding == null) {
+            return;
+        }
         setOverlayPlayPauseImage(player != null && player.isPlaying());
+        if (bottomSheetState == BottomSheetBehavior.STATE_COLLAPSED) {
+            playerUiHideControls();
+        }
 
         switch (state) {
             case Player.STATE_PLAYING:
@@ -1847,7 +1859,14 @@ public final class VideoDetailFragment
     public void onProgressUpdate(final int currentProgress,
                                  final int duration,
                                  final int bufferPercent) {
-        // Progress updates every second even if media is paused. It's useless until playing
+        if (binding == null || player == null || player.getPlayQueue() == null
+                || player.getPlayQueue().getItem() == null) {
+            return;
+        }
+        binding.overlayProgressBar.setMax(Math.max(1, duration));
+        binding.overlayProgressBar.setProgress(currentProgress);
+        binding.overlayProgressBar.setSecondaryProgress((int) (duration * (bufferPercent / 100f)));
+        // Keep the mini progress accurate when paused or seeking, too.
         if (!player.isPlaying() || playQueue == null) {
             return;
         }
@@ -1927,6 +1946,10 @@ public final class VideoDetailFragment
             showSystemUi();
         }
 
+        if (binding.detailMainContent != null) {
+            binding.detailMainContent.setVisibility(fullscreen ? View.GONE : View.VISIBLE);
+        }
+
         if (binding.relatedItemsLayout != null) {
             if (showRelatedItems) {
                 binding.relatedItemsLayout.setVisibility(fullscreen ? View.GONE : View.VISIBLE);
@@ -1936,7 +1959,10 @@ public final class VideoDetailFragment
         }
         scrollToTop();
 
+        setHeightThumbnail();
         tryAddVideoPlayerView();
+        player.UIs().get(MainPlayerUi.class).ifPresent(ui ->
+                binding.playerPlaceholder.post(ui::refreshVideoSurface));
     }
 
     @Override
@@ -1947,8 +1973,8 @@ public final class VideoDetailFragment
         // Just turn on fullscreen mode in landscape orientation
         // or portrait & unlocked global orientation
         final boolean isLandscape = DeviceUtils.isLandscape(requireContext());
-        if (DeviceUtils.isTv(activity) || DeviceUtils.isTablet(activity)
-                && (!globalScreenOrientationLocked(activity) || isLandscape)) {
+        if (DeviceUtils.isTv(activity) || (DeviceUtils.isTablet(activity)
+                && (!globalScreenOrientationLocked(activity) || isLandscape))) {
             player.UIs().get(MainPlayerUi.class).ifPresent(MainPlayerUi::toggleFullscreen);
             return;
         }
@@ -1958,6 +1984,34 @@ public final class VideoDetailFragment
                 : ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
 
         activity.setRequestedOrientation(newOrientation);
+
+        if (isPlayerAvailable() && player.videoPlayerSelected()) {
+            final Optional<MainPlayerUi> playerUi = player.UIs().get(MainPlayerUi.class);
+            if (!isLandscape && !isFullscreen() && !player.isAudioOnly()) {
+                playerUi.ifPresent(MainPlayerUi::toggleFullscreen);
+            } else if (isLandscape && isFullscreen()) {
+                playerUi.ifPresent(MainPlayerUi::toggleFullscreen);
+            }
+        }
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull final Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        final boolean isLandscape = newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE;
+        if (isPlayerAvailable() && player.videoPlayerSelected()) {
+            final Optional<MainPlayerUi> playerUi = player.UIs().get(MainPlayerUi.class);
+            if (isLandscape && !isFullscreen() && !player.isAudioOnly()) {
+                playerUi.ifPresent(MainPlayerUi::toggleFullscreen);
+            } else if (!isLandscape && isFullscreen()
+                    && playerUi.map(ui -> !ui.isVerticalVideo()).orElse(true)
+                    && !DeviceUtils.isTablet(activity)) {
+                playerUi.ifPresent(MainPlayerUi::toggleFullscreen);
+            }
+        }
+        setHeightThumbnail();
+        player.UIs().get(MainPlayerUi.class).ifPresent(ui ->
+                binding.playerPlaceholder.post(ui::refreshVideoSurface));
     }
 
     /*
@@ -1998,10 +2052,13 @@ public final class VideoDetailFragment
             activity.getWindow().getAttributes().layoutInDisplayCutoutMode =
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
         }
-        activity.getWindow().getDecorView().setSystemUiVisibility(0);
+        activity.getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
         activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        activity.getWindow().setStatusBarColor(ThemeHelper.resolveColorFromAttr(
-                requireContext(), android.R.attr.colorPrimary));
+        activity.getWindow().setStatusBarColor(Color.TRANSPARENT);
+        activity.getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        androidx.core.view.WindowCompat.getInsetsController(activity.getWindow(),
+                activity.getWindow().getDecorView()).setAppearanceLightStatusBars(false);
     }
 
     private void hideSystemUi() {
@@ -2342,24 +2399,31 @@ public final class VideoDetailFragment
     }
 
     private void setupBottomPlayer() {
-        final CoordinatorLayout.LayoutParams params =
-                (CoordinatorLayout.LayoutParams) binding.appBarLayout.getLayoutParams();
-        final AppBarLayout.Behavior behavior = (AppBarLayout.Behavior) params.getBehavior();
-
         final FrameLayout bottomSheetLayout = activity.findViewById(R.id.fragment_player_holder);
         bottomSheetBehavior = BottomSheetBehavior.from(bottomSheetLayout);
         bottomSheetBehavior.setState(lastStableBottomSheetState);
         updateBottomSheetState(lastStableBottomSheetState);
 
-        final int peekHeight = getResources().getDimensionPixelSize(R.dimen.mini_player_height);
-        if (bottomSheetState != BottomSheetBehavior.STATE_HIDDEN) {
-            manageSpaceAtTheBottom(false);
-            bottomSheetBehavior.setPeekHeight(peekHeight);
-            if (bottomSheetState == BottomSheetBehavior.STATE_COLLAPSED) {
-                binding.overlayLayout.setAlpha(MAX_OVERLAY_ALPHA);
-            } else if (bottomSheetState == BottomSheetBehavior.STATE_EXPANDED) {
-                binding.overlayLayout.setAlpha(0);
-                setOverlayElementsClickable(false);
+        final PlayerSheetController controller = activity instanceof MainActivity
+                ? ((MainActivity) activity).getPlayerSheetController()
+                : null;
+        if (controller != null) {
+            controller.updatePeekHeight();
+            if (binding != null) {
+                controller.bindPlayerViews(
+                        binding.overlayLayout,
+                        binding.detailThumbnailRootLayout,
+                        binding.overlayButtonsLayout,
+                        binding.detailMainContent,
+                        binding.overlayProgressBar
+                );
+            }
+        } else {
+            final int peekHeight = getResources().getDimensionPixelSize(R.dimen.mini_player_height);
+            if (bottomSheetState != BottomSheetBehavior.STATE_HIDDEN) {
+                manageSpaceAtTheBottom(true);
+                bottomSheetBehavior.setPeekHeight(peekHeight);
+                setOverlayElementsClickable(bottomSheetState == BottomSheetBehavior.STATE_COLLAPSED);
             }
         }
 
@@ -2372,15 +2436,23 @@ public final class VideoDetailFragment
                     case BottomSheetBehavior.STATE_HIDDEN:
                         moveFocusToMainFragment(true);
                         manageSpaceAtTheBottom(true);
+                        if (activity != null && !DeviceUtils.isTablet(activity)) {
+                            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                        }
 
                         bottomSheetBehavior.setPeekHeight(0);
                         cleanUp();
                         break;
                     case BottomSheetBehavior.STATE_EXPANDED:
                         moveFocusToMainFragment(false);
-                        manageSpaceAtTheBottom(false);
+                        manageSpaceAtTheBottom(true);
 
-                        bottomSheetBehavior.setPeekHeight(peekHeight);
+                        if (controller != null) {
+                            controller.updatePeekHeight();
+                        } else {
+                            final int peekHeight = getResources().getDimensionPixelSize(R.dimen.mini_player_height);
+                            bottomSheetBehavior.setPeekHeight(peekHeight);
+                        }
                         // Disable click because overlay buttons located on top of buttons
                         // from the player
                         setOverlayElementsClickable(false);
@@ -2394,13 +2466,21 @@ public final class VideoDetailFragment
                             player.UIs().get(MainPlayerUi.class)
                                     .ifPresent(MainPlayerUi::toggleFullscreen);
                         }
-                        setOverlayLook(binding.appBarLayout, behavior, 1);
+                        updatePlayerPresentation();
                         break;
                     case BottomSheetBehavior.STATE_COLLAPSED:
                         moveFocusToMainFragment(true);
-                        manageSpaceAtTheBottom(false);
+                        manageSpaceAtTheBottom(true);
+                        if (activity != null && !DeviceUtils.isTablet(activity)) {
+                            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                        }
 
-                        bottomSheetBehavior.setPeekHeight(peekHeight);
+                        if (controller != null) {
+                            controller.updatePeekHeight();
+                        } else {
+                            final int peekHeight = getResources().getDimensionPixelSize(R.dimen.mini_player_height);
+                            bottomSheetBehavior.setPeekHeight(peekHeight);
+                        }
 
                         // Re-enable clicks
                         setOverlayElementsClickable(true);
@@ -2408,7 +2488,7 @@ public final class VideoDetailFragment
                             player.UIs().get(MainPlayerUi.class)
                                     .ifPresent(MainPlayerUi::closeItemsList);
                         }
-                        setOverlayLook(binding.appBarLayout, behavior, 0);
+                        updatePlayerPresentation();
                         break;
                     case BottomSheetBehavior.STATE_DRAGGING:
                     case BottomSheetBehavior.STATE_SETTLING:
@@ -2430,29 +2510,28 @@ public final class VideoDetailFragment
 
             @Override
             public void onSlide(@NonNull final View bottomSheet, final float slideOffset) {
-                setOverlayLook(binding.appBarLayout, behavior, slideOffset);
+                if (controller == null && binding != null) {
+                    binding.overlayLayout.setAlpha(1 - Math.max(0, slideOffset));
+                }
             }
         };
 
         bottomSheetBehavior.addBottomSheetCallback(bottomSheetCallback);
 
         // User opened a new page and the player will hide itself
-        activity.getSupportFragmentManager().addOnBackStackChangedListener(() -> {
-            if (bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED) {
+        playerBackStackListener = () -> {
+            if (binding != null
+                    && bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED) {
                 bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
             }
-        });
+        };
+        getParentFragmentManager().addOnBackStackChangedListener(playerBackStackListener);
+        updatePlayerPresentation();
     }
 
     private void updateOverlayPlayQueueButtonVisibility() {
-        final boolean isPlayQueueEmpty =
-                player == null // no player => no play queue :)
-                        || player.getPlayQueue() == null
-                        || player.getPlayQueue().isEmpty();
         if (binding != null) {
-            // binding is null when rotating the device...
-            binding.overlayPlayQueueButton.setVisibility(
-                    isPlayQueueEmpty ? View.GONE : View.VISIBLE);
+            binding.overlayPlayQueueButton.setVisibility(View.GONE);
         }
     }
 
@@ -2461,8 +2540,15 @@ public final class VideoDetailFragment
                                    @NonNull final List<Image> thumbnails) {
         binding.overlayTitleTextView.setText(isEmpty(overlayTitle) ? "" : overlayTitle);
         binding.overlayChannelTextView.setText(isEmpty(uploader) ? "" : uploader);
+        binding.overlayThumbnail.setContentDescription(getString(R.string.expand_video,
+                isEmpty(overlayTitle) ? "" : overlayTitle));
+        CoilUtils.dispose(binding.overlayThumbnail);
         binding.overlayThumbnail.setImageDrawable(null);
-        CoilHelper.INSTANCE.loadDetailsThumbnail(binding.overlayThumbnail, thumbnails);
+        // The actual video surface stays visible underneath the transparent expand button.
+        // Use artwork only for audio/background playback, never over a live video.
+        if (player == null || !player.videoPlayerSelected()) {
+            CoilHelper.INSTANCE.loadDetailsThumbnail(binding.overlayThumbnail, thumbnails);
+        }
     }
 
     private void setOverlayPlayPauseImage(final boolean playerIsPlaying) {
@@ -2470,21 +2556,90 @@ public final class VideoDetailFragment
                 ? R.drawable.ic_pause
                 : R.drawable.ic_play_arrow;
         binding.overlayPlayPauseButton.setImageResource(drawable);
+        binding.overlayPlayPauseButton.setContentDescription(getString(
+                playerIsPlaying ? R.string.pause : R.string.play));
     }
 
-    private void setOverlayLook(final AppBarLayout appBar,
-                                final AppBarLayout.Behavior behavior,
-                                final float slideOffset) {
-        // SlideOffset < 0 when mini player is about to close via swipe.
-        // Stop animation in this case
-        if (behavior == null || slideOffset < 0) {
+    private void updatePlayerPresentation() {
+        if (binding == null) {
             return;
         }
-        binding.overlayLayout.setAlpha(Math.min(MAX_OVERLAY_ALPHA, 1 - slideOffset));
-        // These numbers are not special. They just do a cool transition
-        behavior.setTopAndBottomOffset(
-                (int) (-binding.detailThumbnailImageView.getHeight() * 2 * (1 - slideOffset) / 3));
-        appBar.requestLayout();
+        final boolean minimized = bottomSheetState == BottomSheetBehavior.STATE_COLLAPSED;
+        final FrameLayout holder = activity.findViewById(R.id.fragment_player_holder);
+        final CoordinatorLayout.LayoutParams holderParams =
+                (CoordinatorLayout.LayoutParams) holder.getLayoutParams();
+        holderParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+        holderParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        holderParams.rightMargin = 0;
+        holder.setLayoutParams(holderParams);
+
+        final PlayerSheetController controller = activity instanceof MainActivity
+                ? ((MainActivity) activity).getPlayerSheetController()
+                : null;
+        if (controller != null) {
+            controller.handleSlide(minimized ? 0f : 1f);
+        }
+
+        binding.detailAmbientBackdrop.setVisibility(minimized ? View.GONE : View.VISIBLE);
+        binding.overlayLayout.setVisibility(minimized ? View.VISIBLE : View.GONE);
+        binding.miniBackdrop.setVisibility(minimized ? View.VISIBLE : View.GONE);
+        binding.overlayLayout.setAlpha(minimized ? 1f : 0f);
+        binding.getRoot().setBackgroundResource(minimized
+                ? android.R.color.transparent : R.drawable.frost_window_bg);
+        binding.getRoot().setClickable(!minimized);
+        binding.getRoot().setLongClickable(!minimized);
+        binding.appBarLayout.setExpanded(true, false);
+        if (minimized) {
+            playerUiHideControls();
+        }
+        setHeightThumbnail();
+        binding.detailThumbnailRootLayout.post(() -> {
+            if (binding != null) {
+                androidx.core.view.ViewCompat.requestApplyInsets(binding.detailThumbnailRootLayout);
+            }
+        });
+    }
+
+    private void captureAmbientFrame() {
+        if (binding == null || !isResumed()) {
+            return;
+        }
+        ambientHandler.postDelayed(ambientFrame, 1200);
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N || ambientCapturePending
+                || player == null || !player.isPlaying()
+                || lastStableBottomSheetState != BottomSheetBehavior.STATE_EXPANDED
+                || isFullscreen()) {
+            return;
+        }
+        player.UIs().get(MainPlayerUi.class).ifPresent(ui -> {
+            final var surface = ui.getBinding().surfaceView;
+            if (!surface.getHolder().getSurface().isValid()) {
+                return;
+            }
+            final FragmentVideoDetailBinding expectedBinding = binding;
+            final Bitmap frame = Bitmap.createBitmap(96, 54, Bitmap.Config.ARGB_8888);
+            ambientCapturePending = true;
+            try {
+                PixelCopy.request(surface, frame, result -> {
+                    ambientCapturePending = false;
+                    if (result == PixelCopy.SUCCESS && binding == expectedBinding && isResumed()) {
+                        CoilUtils.dispose(binding.detailAmbientBackdrop);
+                        binding.detailAmbientBackdrop.setImageBitmap(frame);
+                    } else {
+                        frame.recycle();
+                    }
+                }, ambientHandler);
+            } catch (final IllegalArgumentException error) {
+                ambientCapturePending = false;
+                frame.recycle();
+            }
+        });
+    }
+
+    private void playerUiHideControls() {
+        if (player != null) {
+            player.UIs().get(MainPlayerUi.class).ifPresent(ui -> ui.hideControls(0, 0));
+        }
     }
 
     private void setOverlayElementsClickable(final boolean enable) {

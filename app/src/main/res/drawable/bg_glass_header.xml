@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Header translucent gradient: #D90D0E15 top to #A60D0E15 bottom -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="#D90D0E15"
+                android:endColor="#A60D0E15" />
+        </shape>
+    </item>
+
+    <!-- 0.8dp bottom specular refraction line -->
+    <item
+        android:gravity="bottom"
+        android:height="1dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="0"
+                android:startColor="#1AFFFFFF"
+                android:centerColor="#40FFFFFF"
+                android:endColor="#1AFFFFFF" />
+        </shape>
+    </item>
+</layer-list>

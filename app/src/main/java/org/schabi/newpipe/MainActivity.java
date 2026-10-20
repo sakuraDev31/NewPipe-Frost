@@ -21,39 +21,43 @@
 package org.schabi.newpipe;
 
 import android.app.AlertDialog;
+import android.app.PictureInPictureParams;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.content.SharedPreferences;
+import android.graphics.Typeface;
+import android.graphics.Rect;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
+import android.text.SpannableString;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.TextUtils;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
 import android.util.Log;
+import android.util.Rational;
 import android.view.KeyEvent;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewOutlineProvider;
 import android.webkit.WebView;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
-import android.widget.Spinner;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.view.GravityCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentContainerView;
 import androidx.fragment.app.FragmentManager;
@@ -61,31 +65,24 @@ import androidx.preference.PreferenceManager;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 
+
 import org.schabi.newpipe.databinding.ActivityMainBinding;
-import org.schabi.newpipe.databinding.DrawerHeaderBinding;
-import org.schabi.newpipe.databinding.DrawerLayoutBinding;
-import org.schabi.newpipe.databinding.GlassNavRailBinding;
-import org.schabi.newpipe.databinding.InstanceSpinnerLayoutBinding;
 import org.schabi.newpipe.databinding.ToolbarLayoutBinding;
 import org.schabi.newpipe.error.ErrorUtil;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItem;
-import org.schabi.newpipe.extractor.exceptions.ExtractionException;
-import org.schabi.newpipe.extractor.services.peertube.PeertubeInstance;
 import org.schabi.newpipe.fragments.BackPressable;
 import org.schabi.newpipe.fragments.MainFragment;
 import org.schabi.newpipe.fragments.detail.VideoDetailFragment;
+import org.schabi.newpipe.download.GlassDownloadFragment;
 import org.schabi.newpipe.fragments.list.comments.CommentRepliesFragment;
 import org.schabi.newpipe.fragments.list.search.SearchFragment;
 import org.schabi.newpipe.frost.LibraryHubFragment;
-import org.schabi.newpipe.local.bookmark.BookmarkFragment;
-import org.schabi.newpipe.local.feed.FeedFragment;
 import org.schabi.newpipe.local.feed.notifications.NotificationWorker;
-import org.schabi.newpipe.local.history.StatisticsPlaylistFragment;
-import org.schabi.newpipe.local.playlist.LocalPlaylistFragment;
 import org.schabi.newpipe.local.subscription.SubscriptionFragment;
 import org.schabi.newpipe.player.Player;
+import org.schabi.newpipe.player.PlayerType;
 import org.schabi.newpipe.player.event.OnKeyDownListener;
 import org.schabi.newpipe.player.helper.PlayerHolder;
 import org.schabi.newpipe.player.playqueue.PlayQueue;
@@ -93,10 +90,8 @@ import org.schabi.newpipe.settings.UpdateSettingsFragment;
 import org.schabi.newpipe.settings.migration.MigrationManager;
 import org.schabi.newpipe.util.Constants;
 import org.schabi.newpipe.util.DeviceUtils;
-import org.schabi.newpipe.util.KioskTranslator;
 import org.schabi.newpipe.util.Localization;
 import org.schabi.newpipe.util.NavigationHelper;
-import org.schabi.newpipe.util.PeertubeHelper;
 import org.schabi.newpipe.util.PermissionHelper;
 import org.schabi.newpipe.util.ReleaseVersionUtil;
 import org.schabi.newpipe.util.SerializedCache;
@@ -105,10 +100,18 @@ import org.schabi.newpipe.util.StateSaver;
 import org.schabi.newpipe.util.ThemeHelper;
 import org.schabi.newpipe.util.external_communication.ShareUtils;
 import org.schabi.newpipe.views.FocusOverlayView;
+import org.schabi.newpipe.views.glass.AdaptiveGlassNavController;
+import org.schabi.newpipe.views.glass.PlayerSheetController;
+
+
+import android.content.res.Configuration;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -118,26 +121,12 @@ public class MainActivity extends AppCompatActivity {
     public static final boolean DEBUG = !BuildConfig.BUILD_TYPE.equals("release");
 
     private ActivityMainBinding mainBinding;
-    private DrawerHeaderBinding drawerHeaderBinding;
-    private DrawerLayoutBinding drawerLayoutBinding;
     private ToolbarLayoutBinding toolbarLayoutBinding;
-
-    private ActionBarDrawerToggle toggle;
-
-    private boolean servicesShown = false;
+    private AdaptiveGlassNavController adaptiveNavController;
+    private PlayerSheetController playerSheetController;
 
     private BroadcastReceiver broadcastReceiver;
 
-    private static final int ITEM_ID_SUBSCRIPTIONS = -1;
-    private static final int ITEM_ID_FEED = -2;
-    private static final int ITEM_ID_BOOKMARKS = -3;
-    private static final int ITEM_ID_DOWNLOADS = -4;
-    private static final int ITEM_ID_HISTORY = -5;
-    private static final int ITEM_ID_SETTINGS = 0;
-    private static final int ITEM_ID_DONATION = 1;
-    private static final int ITEM_ID_ABOUT = 2;
-
-    private static final int ORDER = 0;
     public static final String KEY_IS_IN_BACKGROUND = "is_in_background";
 
     private SharedPreferences sharedPreferences;
@@ -175,9 +164,6 @@ public class MainActivity extends AppCompatActivity {
         sharedPrefEditor = sharedPreferences.edit();
 
         mainBinding = ActivityMainBinding.inflate(getLayoutInflater());
-        drawerLayoutBinding = mainBinding.drawerLayout;
-        drawerHeaderBinding = DrawerHeaderBinding.bind(drawerLayoutBinding.navigation
-                .getHeaderView(0));
         toolbarLayoutBinding = mainBinding.toolbarLayout;
         setContentView(mainBinding.getRoot());
 
@@ -186,11 +172,15 @@ public class MainActivity extends AppCompatActivity {
         }
 
         setSupportActionBar(toolbarLayoutBinding.toolbar);
-        setupGlassRail();
-        try {
-            setupDrawer();
-        } catch (final Exception e) {
-            ErrorUtil.showUiErrorSnackbar(this, "Setting up drawer", e);
+        final ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) {
+            actionBar.setDisplayShowTitleEnabled(false);
+        }
+        setupHeaderActions();
+        setupGroundedDock();
+        setupLiquidStatusBar();
+        if (savedInstanceState == null && Intent.ACTION_MAIN.equals(getIntent().getAction())) {
+            showStartupBranding();
         }
         if (DeviceUtils.isTv(this)) {
             FocusOverlayView.setupFocusObserver(this);
@@ -219,6 +209,63 @@ public class MainActivity extends AppCompatActivity {
         MigrationManager.showUserInfoIfPresent(this);
     }
 
+    private int systemBarTopInset = 0;
+
+    public int getSystemBarTopInset() {
+        return systemBarTopInset;
+    }
+
+    public int getTopHeaderTotalHeight() {
+        if (toolbarLayoutBinding != null && toolbarLayoutBinding.getRoot().getHeight() > 0) {
+            return toolbarLayoutBinding.getRoot().getHeight();
+        }
+        return systemBarTopInset + org.schabi.newpipe.util.DeviceUtils.dpToPx(56, this);
+    }
+
+    public int getFeedBottomContentPadding() {
+        final int dockHeight = (mainBinding != null && mainBinding.groundedDockContainer != null
+                && mainBinding.groundedDockContainer.getHeight() > 0)
+                ? mainBinding.groundedDockContainer.getHeight()
+                : org.schabi.newpipe.util.DeviceUtils.dpToPx(64, this);
+        final boolean miniVisible = playerSheetController != null && playerSheetController.isCollapsed();
+        final int miniHeight = miniVisible
+                ? getResources().getDimensionPixelSize(R.dimen.mini_player_height)
+                : 0;
+        return dockHeight + miniHeight;
+    }
+
+    public void updateFeedsPadding() {
+        final int topPad = getTopHeaderTotalHeight();
+        final int bottomPad = getFeedBottomContentPadding();
+        final FragmentManager fm = getSupportFragmentManager();
+        for (final Fragment fragment : fm.getFragments()) {
+            if (fragment instanceof org.schabi.newpipe.util.LiquidFeedPaddingListener) {
+                ((org.schabi.newpipe.util.LiquidFeedPaddingListener) fragment)
+                        .onFeedPaddingUpdated(topPad, bottomPad);
+            }
+        }
+    }
+
+    private void setupLiquidStatusBar() {
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+        final var controller = androidx.core.view.WindowCompat.getInsetsController(
+                getWindow(), mainBinding.getRoot());
+        if (controller != null) {
+            controller.setAppearanceLightStatusBars(false);
+        }
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(
+                toolbarLayoutBinding.getRoot(), (view, insets) -> {
+                    systemBarTopInset = insets.getInsets(
+                            androidx.core.view.WindowInsetsCompat.Type.systemBars()).top;
+                    view.setPadding(0, systemBarTopInset, 0, 0);
+                    view.post(this::updateFeedsPadding);
+                    return insets;
+                });
+        androidx.core.view.ViewCompat.requestApplyInsets(mainBinding.getRoot());
+    }
+
     @Override
     protected void onPostCreate(final Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
@@ -243,440 +290,381 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onStop() {
+        dismissStartupBranding();
         super.onStop();
         sharedPrefEditor.putBoolean(KEY_IS_IN_BACKGROUND, true).apply();
         Log.d(TAG, "App moved to background");
     }
-    private int systemBarBottomInset = 0;
+
+    @Override
+    public void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        enterPictureInPictureForPlayer();
+    }
 
     /**
-     * Wires up the frosted-glass navigation rail on the right edge.
+     * Enters system PiP for the active video player. This is also used by the former popup
+     * action, so the action does not merely show a toast while leaving the video in the app.
      */
-    private void setupGlassRail() {
-        final GlassNavRailBinding rail = mainBinding.glassRail;
+    public boolean enterPictureInPictureForPlayer() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O
+                || isInPictureInPictureMode()
+                || !PlayerHolder.getInstance().isPlaying()
+                || PlayerHolder.getInstance().getType() != PlayerType.MAIN) {
+            return false;
+        }
+        if (playerSheetController != null && !playerSheetController.isExpanded()) {
+            playerSheetController.expand();
+        }
+        final PictureInPictureParams.Builder params = new PictureInPictureParams.Builder()
+                .setAspectRatio(new Rational(16, 9));
+        final Rect sourceRect = new Rect();
+        if (mainBinding.fragmentPlayerHolder.getGlobalVisibleRect(sourceRect)) {
+            params.setSourceRectHint(sourceRect);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            params.setAutoEnterEnabled(true);
+        }
+        final boolean entered = enterPictureInPictureMode(params.build());
+        if (entered) {
+            Toast.makeText(this, R.string.picture_in_picture_playing_toast,
+                    Toast.LENGTH_SHORT).show();
+            mainBinding.getRoot().postDelayed(() -> moveTaskToBack(true), 100);
+        }
+        return entered;
+    }
 
-        // Apply Phase 0.5 Glass Design System (Full radius, real backdrop blur, grain, specular highlight)
-        org.schabi.newpipe.views.glass.GlassDrawable.setupBlurView(
-                rail.getRoot(), mainBinding.blurTarget, org.schabi.newpipe.views.glass.GlassDrawable.RADIUS_FULL);
+    @Override
+    public void onPictureInPictureModeChanged(final boolean isInPictureInPictureMode) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode);
+        if (mainBinding == null) {
+            return;
+        }
+        final int visibility = isInPictureInPictureMode ? View.GONE : View.VISIBLE;
+        toolbarLayoutBinding.getRoot().setVisibility(visibility);
+        mainBinding.groundedDockContainer.setVisibility(visibility);
+        mainBinding.floatingVerticalDuoPill.setVisibility(visibility);
+    }
 
-        // Apply 150ms press spring scale to rail items
-        org.schabi.newpipe.views.glass.GlassMotion.applyPressScale(rail.railHome);
-        org.schabi.newpipe.views.glass.GlassMotion.applyPressScale(rail.railSubscriptions);
-        org.schabi.newpipe.views.glass.GlassMotion.applyPressScale(rail.railLibrary);
+    public PlayerSheetController getPlayerSheetController() {
+        return playerSheetController;
+    }
 
-        rail.railHome.setOnClickListener(v -> {
-            final Fragment f = getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
-            if (f instanceof MainFragment) {
-                getSupportFragmentManager().popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
-            } else {
-                NavigationHelper.openMainFragment(getSupportFragmentManager());
+    /**
+     * Wires up adaptive navigation: Portrait Grounded Dock + Landscape Floating Duo Pill.
+     */
+    private void setupGroundedDock() {
+        adaptiveNavController = new AdaptiveGlassNavController(
+                this,
+                mainBinding.groundedDockContainer,
+                mainBinding.groundedGlassDock,
+                mainBinding.dockActiveIndicator,
+                mainBinding.floatingVerticalDuoPill,
+                mainBinding.duoActiveIndicator,
+                mainBinding.duoTabHome,
+                mainBinding.duoTabSubs,
+                mainBinding.duoTabDownloads,
+                mainBinding.duoTabLibrary,
+                mainBinding.duoIconHome,
+                mainBinding.duoIconSubs,
+                mainBinding.duoIconDownloads,
+                mainBinding.duoIconLibrary,
+                mainBinding.duoTextHome,
+                mainBinding.duoTextSubs,
+                mainBinding.duoTextDownloads,
+                mainBinding.duoTextLibrary
+        );
+
+        playerSheetController = new PlayerSheetController(
+                this,
+                mainBinding.fragmentPlayerHolder,
+                mainBinding.groundedDockContainer,
+                mainBinding.floatingVerticalDuoPill
+        );
+
+        playerSheetController.setOnStateChangeListener(state -> {
+            if (adaptiveNavController != null) {
+                if (state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED) {
+                    adaptiveNavController.setPlayerActive(true);
+                } else if (state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN) {
+                    adaptiveNavController.setPlayerActive(false);
+                } else if (state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED) {
+                    final boolean isLandscape = getResources().getConfiguration().orientation
+                            == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+                    adaptiveNavController.setPlayerActive(isLandscape);
+                }
             }
+            updateFeedsPadding();
         });
-        rail.railSubscriptions.setOnClickListener(v ->
-                NavigationHelper.openSubscriptionFragment(getSupportFragmentManager()));
-        rail.railLibrary.setOnClickListener(v -> openLibraryHub());
 
-        // Listen for WindowInsets dynamically (no hardcoded status/nav bar heights)
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(mainBinding.getRoot(), (v, insets) -> {
-            final androidx.core.graphics.Insets bars = insets.getInsets(
-                    androidx.core.view.WindowInsetsCompat.Type.systemBars());
-            systemBarBottomInset = bars.bottom;
-            updateRailPosition();
+        ViewCompat.setOnApplyWindowInsetsListener(mainBinding.groundedDockContainer, (v, insets) -> {
+            final int bottom = insets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()).bottom;
+            v.setPadding(0, 0, 0, bottom);
+            mainBinding.groundedGlassDock.post(() -> {
+                if (playerSheetController != null) {
+                    playerSheetController.updatePeekHeight();
+                }
+                updateFeedsPadding();
+            });
             return insets;
         });
 
-        getSupportFragmentManager().addOnBackStackChangedListener(this::updateRailSelection);
-        mainBinding.getRoot().post(() -> {
-            updateRailSelection();
-            updateRailPosition();
+        getSupportFragmentManager().addOnBackStackChangedListener(() -> {
+            updateHeaderNavigationIcon();
+            if (playerSheetController == null || !playerSheetController.isExpanded()) {
+                if (getRequestedOrientation() != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+                    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                }
+            }
+            if (adaptiveNavController != null) {
+                adaptiveNavController.syncWithActiveFragment();
+            }
+            updateFeedsPadding();
         });
-
-        try {
-            final com.google.android.material.bottomsheet.BottomSheetBehavior<?> bsb =
-                    com.google.android.material.bottomsheet.BottomSheetBehavior.from(
-                            mainBinding.fragmentPlayerHolder);
-            bsb.addBottomSheetCallback(
-                    new com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback() {
-                @Override
-                public void onStateChanged(@NonNull final View bottomSheet, final int newState) {
-                    updateRailPosition();
-                    if (newState == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED) {
-                        rail.getRoot().setVisibility(View.GONE);
-                    } else if (newState == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
-                            || newState == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN) {
-                        rail.getRoot().setVisibility(View.VISIBLE);
-                        rail.getRoot().setAlpha(1f);
-                    }
-                }
-
-                @Override
-                public void onSlide(@NonNull final View bottomSheet, final float slideOffset) {
-                    if (slideOffset > 0.05f) {
-                        rail.getRoot().setAlpha(Math.max(0f, 1f - slideOffset * 2.5f));
-                        if (slideOffset > 0.4f) {
-                            rail.getRoot().setVisibility(View.GONE);
-                        }
-                    } else {
-                        rail.getRoot().setVisibility(View.VISIBLE);
-                        rail.getRoot().setAlpha(1f);
-                    }
-                }
-            });
-        } catch (final Exception ignored) {
-        }
     }
 
     /**
-     * Updates the dynamic bottom position of the nav rail based on WindowInsets
-     * and the mini player's state and peek height, ensuring it sits cleanly above
-     * the mini player without covering its controls.
+     * Sets up non-colliding header actions: Adaptive nav button, Search pill,
+     * and Search Edit Mode with real focusable EditText.
      */
-    private void updateRailPosition() {
-        final GlassNavRailBinding rail = mainBinding.glassRail;
-        final ViewGroup.LayoutParams baseLp = rail.getRoot().getLayoutParams();
-        if (!(baseLp instanceof androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)) {
-            return;
-        }
-        final androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams lp =
-                (androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams) baseLp;
+    private void setupHeaderActions() {
+        setupBrandingTitle();
 
-        final int margin12 = (int) (12 * getResources().getDisplayMetrics().density);
-        lp.rightMargin = margin12;
-
-        int miniPlayerOffset = 0;
-        try {
-            final com.google.android.material.bottomsheet.BottomSheetBehavior<?> bsb =
-                    com.google.android.material.bottomsheet.BottomSheetBehavior.from(
-                            mainBinding.fragmentPlayerHolder);
-            if (bsb.getState() == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED) {
-                miniPlayerOffset = bsb.getPeekHeight();
-            }
-        } catch (final Exception ignored) {
-        }
-
-        final int bottomMargin = Math.max(systemBarBottomInset, 0) + miniPlayerOffset + margin12;
-        if (lp.bottomMargin != bottomMargin) {
-            lp.bottomMargin = bottomMargin;
-            rail.getRoot().setLayoutParams(lp);
-        }
-    }
-
-    /**
-     * Highlights the rail item that matches the fragment currently on screen
-     * using the 250ms overshoot sliding red glass capsule indicator and typography tokens.
-     */
-    private void updateRailSelection() {
-        final Fragment fragment = getSupportFragmentManager()
-                .findFragmentById(R.id.fragment_holder);
-        final GlassNavRailBinding rail = mainBinding.glassRail;
-
-        final boolean isHome = fragment instanceof MainFragment;
-        final boolean isSubs = fragment instanceof SubscriptionFragment
-                || fragment instanceof FeedFragment;
-        final boolean isLib = fragment instanceof LibraryHubFragment
-                || fragment instanceof BookmarkFragment
-                || fragment instanceof LocalPlaylistFragment
-                || fragment instanceof StatisticsPlaylistFragment;
-
-        rail.railHome.setSelected(isHome);
-        rail.railSubscriptions.setSelected(isSubs);
-        rail.railLibrary.setSelected(isLib);
-
-        final View targetView = isSubs ? rail.railSubscriptions : (isLib ? rail.railLibrary : rail.railHome);
-        targetView.post(() -> org.schabi.newpipe.views.glass.GlassMotion.slideIndicator(
-                rail.railActiveCapsule, targetView.getTop()));
-
-        final int primaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.glass_text_primary);
-        final int secondaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.glass_text_secondary);
-
-        rail.railIconHome.setImageTintList(android.content.res.ColorStateList.valueOf(isHome ? primaryColor : secondaryColor));
-        rail.railTextHome.setTextColor(isHome ? primaryColor : secondaryColor);
-
-        rail.railIconSubscriptions.setImageTintList(android.content.res.ColorStateList.valueOf(isSubs ? primaryColor : secondaryColor));
-        rail.railTextSubscriptions.setTextColor(isSubs ? primaryColor : secondaryColor);
-
-        rail.railIconLibrary.setImageTintList(android.content.res.ColorStateList.valueOf(isLib ? primaryColor : secondaryColor));
-        rail.railTextLibrary.setTextColor(isLib ? primaryColor : secondaryColor);
-    }
-
-    private void openLibraryHub() {
-        final Fragment current = getSupportFragmentManager()
-                .findFragmentById(R.id.fragment_holder);
-        if (current instanceof LibraryHubFragment) {
-            return;
-        }
-        getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fragment_holder, new LibraryHubFragment())
-                .addToBackStack(null)
-                .commit();
-    }
-
-    private void setupDrawer() throws ExtractionException {
-        addDrawerMenuForCurrentService();
-
-        toggle = new ActionBarDrawerToggle(this, mainBinding.getRoot(),
-                toolbarLayoutBinding.toolbar, R.string.drawer_open, R.string.drawer_close);
-        toggle.syncState();
-        mainBinding.getRoot().addDrawerListener(toggle);
-        mainBinding.getRoot().addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
-            private int lastService;
-
-            @Override
-            public void onDrawerOpened(final View drawerView) {
-                lastService = ServiceHelper.getSelectedServiceId(MainActivity.this);
-            }
-
-            @Override
-            public void onDrawerClosed(final View drawerView) {
-                if (servicesShown) {
-                    toggleServices();
+        // 1. Single Adaptive Left Navigation Button (Hamburger / Back)
+        toolbarLayoutBinding.btnHeaderNav.setOnClickListener(v -> {
+            final Fragment currentFragment = getSupportFragmentManager()
+                    .findFragmentById(R.id.fragment_holder);
+            if (isRootTabFragment(currentFragment)) {
+                if (mainBinding.drawerLayout.isDrawerOpen(androidx.core.view.GravityCompat.START)) {
+                    mainBinding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START);
+                } else {
+                    mainBinding.drawerLayout.openDrawer(androidx.core.view.GravityCompat.START);
                 }
-                if (lastService != ServiceHelper.getSelectedServiceId(MainActivity.this)) {
-                    ActivityCompat.recreate(MainActivity.this);
-                }
+            } else {
+                getOnBackPressedDispatcher().onBackPressed();
             }
         });
 
-        drawerLayoutBinding.navigation.setNavigationItemSelectedListener(this::drawerItemSelected);
-        setupDrawerHeader();
-    }
 
-    /**
-     * Builds the drawer menu for the current service.
-     *
-     * @throws ExtractionException if the service didn't provide available kiosks
-     */
-    private void addDrawerMenuForCurrentService() throws ExtractionException {
-        //Tabs
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_SUBSCRIPTIONS, ORDER,
-                        R.string.tab_subscriptions)
-                .setIcon(R.drawable.ic_tv);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_FEED, ORDER, R.string.fragment_feed_title)
-                .setIcon(R.drawable.ic_subscriptions);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_BOOKMARKS, ORDER, R.string.tab_bookmarks)
-                .setIcon(R.drawable.ic_bookmark);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_DOWNLOADS, ORDER, R.string.downloads)
-                .setIcon(R.drawable.ic_file_download);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_HISTORY, ORDER, R.string.action_history)
-                .setIcon(R.drawable.ic_history);
+        // 4. Search Edit Mode Exit (Back button)
+        toolbarLayoutBinding.btnSearchBack.setOnClickListener(v -> exitSearchMode(true));
 
-        //Kiosks
-        final int currentServiceId = ServiceHelper.getSelectedServiceId(this);
-        final StreamingService service = NewPipe.getService(currentServiceId);
+        // 5. Search Clear Button
+        toolbarLayoutBinding.btnSearchClear.setOnClickListener(v -> {
+            toolbarLayoutBinding.searchEditText.setText("");
+        });
 
-        int kioskMenuItemId = 0;
+        // 6. TextWatcher & IME Action on Search EditText
+        toolbarLayoutBinding.searchEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(final CharSequence s, final int start, final int count, final int after) {}
 
-        for (final String ks : service.getKioskList().getAvailableKiosks()) {
-            drawerLayoutBinding.navigation.getMenu()
-                    .add(R.id.menu_kiosks_group, kioskMenuItemId, 0, KioskTranslator
-                            .getTranslatedKioskName(ks, this))
-                    .setIcon(KioskTranslator.getKioskIcon(ks));
-            kioskMenuItemId++;
-        }
-
-        //Settings and About
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_options_about_group, ITEM_ID_SETTINGS, ORDER, R.string.settings)
-                .setIcon(R.drawable.ic_settings);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_options_about_group, ITEM_ID_DONATION, ORDER,
-                        R.string.donation_title)
-                .setIcon(R.drawable.volunteer_activism_ic);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_options_about_group, ITEM_ID_ABOUT, ORDER, R.string.tab_about)
-                .setIcon(R.drawable.ic_info_outline);
-    }
-
-    private boolean drawerItemSelected(final MenuItem item) {
-        final int groupId = item.getGroupId();
-        if (groupId == R.id.menu_services_group) {
-            changeService(item);
-        } else if (groupId == R.id.menu_tabs_group) {
-            tabSelected(item);
-        } else if (groupId == R.id.menu_kiosks_group) {
-            try {
-                kioskSelected(item);
-            } catch (final Exception e) {
-                ErrorUtil.showUiErrorSnackbar(this, "Selecting drawer kiosk", e);
+            @Override
+            public void onTextChanged(final CharSequence s, final int start, final int before, final int count) {
+                final boolean hasText = s != null && s.length() > 0;
+                toolbarLayoutBinding.btnSearchClear.setVisibility(hasText ? View.VISIBLE : View.GONE);
             }
-        } else if (groupId == R.id.menu_options_about_group) {
-            optionsAboutSelected(item);
-        } else {
+
+            @Override
+            public void afterTextChanged(final Editable s) {}
+        });
+
+        toolbarLayoutBinding.searchEditText.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                final String query = toolbarLayoutBinding.searchEditText.getText().toString().trim();
+                if (!TextUtils.isEmpty(query)) {
+                    hideKeyboard();
+                    NavigationHelper.openSearchFragment(
+                            getSupportFragmentManager(),
+                            ServiceHelper.getSelectedServiceId(this),
+                            query
+                    );
+                }
+                return true;
+            }
             return false;
-        }
-
-        mainBinding.getRoot().closeDrawers();
-        return true;
+        });
     }
 
-    private void changeService(final MenuItem item) {
-        drawerLayoutBinding.navigation.getMenu()
-                .getItem(ServiceHelper.getSelectedServiceId(this))
-                .setChecked(false);
-        ServiceHelper.setSelectedServiceId(this, item.getItemId());
-        drawerLayoutBinding.navigation.getMenu()
-                .getItem(ServiceHelper.getSelectedServiceId(this))
-                .setChecked(true);
-    }
+    private com.airbnb.lottie.LottieAnimationView startupAnimation;
+    private final Runnable finishStartup = this::dismissStartupBranding;
 
-    private void tabSelected(final MenuItem item) {
-        switch (item.getItemId()) {
-            case ITEM_ID_SUBSCRIPTIONS:
-                NavigationHelper.openSubscriptionFragment(getSupportFragmentManager());
-                break;
-            case ITEM_ID_FEED:
-                NavigationHelper.openFeedFragment(getSupportFragmentManager());
-                break;
-            case ITEM_ID_BOOKMARKS:
-                NavigationHelper.openBookmarksFragment(getSupportFragmentManager());
-                break;
-            case ITEM_ID_DOWNLOADS:
-                NavigationHelper.openDownloads(this);
-                break;
-            case ITEM_ID_HISTORY:
-                NavigationHelper.openStatisticFragment(getSupportFragmentManager());
-                break;
+    private void showStartupBranding() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                && !android.animation.ValueAnimator.areAnimatorsEnabled()) {
+            return;
         }
-    }
-
-    private void kioskSelected(final MenuItem item) throws ExtractionException {
-        final StreamingService currentService = ServiceHelper.getSelectedService(this);
-        int kioskMenuItemId = 0;
-        for (final String kioskId : currentService.getKioskList().getAvailableKiosks()) {
-            if (kioskMenuItemId == item.getItemId()) {
-                NavigationHelper.openKioskFragment(getSupportFragmentManager(),
-                        currentService.getServiceId(), kioskId);
-                break;
-            }
-            kioskMenuItemId++;
-        }
-    }
-
-    private void optionsAboutSelected(final MenuItem item) {
-        switch (item.getItemId()) {
-            case ITEM_ID_SETTINGS:
-                NavigationHelper.openSettings(this);
-                break;
-            case ITEM_ID_DONATION:
-                ShareUtils.openUrlInBrowser(this, getString(R.string.donation_url));
-                break;
-            case ITEM_ID_ABOUT:
-                NavigationHelper.openAbout(this);
-                break;
-        }
-    }
-
-    private void setupDrawerHeader() {
-        drawerHeaderBinding.drawerHeaderActionButton.setOnClickListener(view -> toggleServices());
-
-        // If the current app name is bigger than the default "NewPipe" (7 chars),
-        // let the text view grow a little more as well.
-        if (getString(R.string.app_name).length() > "NewPipe".length()) {
-            final ViewGroup.LayoutParams layoutParams =
-                    drawerHeaderBinding.drawerHeaderNewpipeTitle.getLayoutParams();
-            layoutParams.width = ViewGroup.LayoutParams.WRAP_CONTENT;
-            drawerHeaderBinding.drawerHeaderNewpipeTitle.setLayoutParams(layoutParams);
-            drawerHeaderBinding.drawerHeaderNewpipeTitle.setMaxLines(2);
-            drawerHeaderBinding.drawerHeaderNewpipeTitle.setMinWidth(getResources()
-                    .getDimensionPixelSize(R.dimen.drawer_header_newpipe_title_default_width));
-            drawerHeaderBinding.drawerHeaderNewpipeTitle.setMaxWidth(getResources()
-                    .getDimensionPixelSize(R.dimen.drawer_header_newpipe_title_max_width));
-        }
-    }
-
-    private void toggleServices() {
-        servicesShown = !servicesShown;
-
-        drawerLayoutBinding.navigation.getMenu().removeGroup(R.id.menu_services_group);
-        drawerLayoutBinding.navigation.getMenu().removeGroup(R.id.menu_tabs_group);
-        drawerLayoutBinding.navigation.getMenu().removeGroup(R.id.menu_kiosks_group);
-        drawerLayoutBinding.navigation.getMenu().removeGroup(R.id.menu_options_about_group);
-
-        // Show up or down arrow
-        drawerHeaderBinding.drawerArrow.setImageResource(
-                servicesShown ? R.drawable.ic_arrow_drop_up : R.drawable.ic_arrow_drop_down);
-
-        if (servicesShown) {
-            showServices();
-        } else {
-            try {
-                addDrawerMenuForCurrentService();
-            } catch (final Exception e) {
-                ErrorUtil.showUiErrorSnackbar(this, "Showing main page tabs", e);
-            }
-        }
-    }
-
-    private void showServices() {
-        for (final StreamingService s : NewPipe.getServices()) {
-            final String title = s.getServiceInfo().getName();
-
-            final MenuItem menuItem = drawerLayoutBinding.navigation.getMenu()
-                    .add(R.id.menu_services_group, s.getServiceId(), ORDER, title)
-                    .setIcon(ServiceHelper.getIcon(s.getServiceId()));
-
-            // peertube specifics
-            if (s.getServiceId() == 3) {
-                enhancePeertubeMenu(menuItem);
-            }
-        }
-        drawerLayoutBinding.navigation.getMenu()
-                .getItem(ServiceHelper.getSelectedServiceId(this))
-                .setChecked(true);
-    }
-
-    private void enhancePeertubeMenu(final MenuItem menuItem) {
-        final PeertubeInstance currentInstance = PeertubeHelper.getCurrentInstance();
-        menuItem.setTitle(currentInstance.getName());
-        final Spinner spinner = InstanceSpinnerLayoutBinding.inflate(LayoutInflater.from(this))
-                .getRoot();
-        final List<PeertubeInstance> instances = PeertubeHelper.getInstanceList(this);
-        final List<String> items = new ArrayList<>();
-        int defaultSelect = 0;
-        for (final PeertubeInstance instance : instances) {
-            items.add(instance.getName());
-            if (instance.getUrl().equals(currentInstance.getUrl())) {
-                defaultSelect = items.size() - 1;
-            }
-        }
-        final ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                R.layout.instance_spinner_item, items);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
-        spinner.setSelection(defaultSelect, false);
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+        final com.airbnb.lottie.LottieAnimationView animation =
+                new com.airbnb.lottie.LottieAnimationView(this);
+        startupAnimation = animation;
+        animation.setBackgroundColor(0xFF090A0F);
+        animation.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
+        final int padding = Math.max(0, (getResources().getDisplayMetrics().widthPixels
+                - DeviceUtils.dpToPx(112, this)) / 2);
+        animation.setPadding(padding, 0, padding, 0);
+        animation.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        animation.setOnClickListener(v -> dismissStartupBranding());
+        animation.setFailureListener(error -> dismissStartupBranding());
+        animation.addAnimatorListener(new android.animation.AnimatorListenerAdapter() {
             @Override
-            public void onItemSelected(final AdapterView<?> parent, final View view,
-                                       final int position, final long id) {
-                final PeertubeInstance newInstance = instances.get(position);
-                if (newInstance.getUrl().equals(PeertubeHelper.getCurrentInstance().getUrl())) {
-                    return;
-                }
-                PeertubeHelper.selectInstance(newInstance, getApplicationContext());
-                changeService(menuItem);
-                mainBinding.getRoot().closeDrawers();
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    getSupportFragmentManager().popBackStack(null,
-                            FragmentManager.POP_BACK_STACK_INCLUSIVE);
-                    ActivityCompat.recreate(MainActivity.this);
-                }, 300);
-            }
-
-            @Override
-            public void onNothingSelected(final AdapterView<?> parent) {
-
+            public void onAnimationEnd(final android.animation.Animator animator) {
+                dismissStartupBranding();
             }
         });
-        menuItem.setActionView(spinner);
+        addContentView(animation, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        animation.setAnimation("frost_startup.json");
+        animation.playAnimation();
+        // Never hold navigation hostage to animation decoding or a lifecycle interruption.
+        animation.postDelayed(finishStartup, 1200);
+    }
+
+    private void dismissStartupBranding() {
+        final com.airbnb.lottie.LottieAnimationView animation = startupAnimation;
+        startupAnimation = null;
+        if (animation != null) {
+            animation.removeCallbacks(finishStartup);
+            animation.removeAllAnimatorListeners();
+            animation.cancelAnimation();
+            if (animation.getParent() instanceof ViewGroup) {
+                ((ViewGroup) animation.getParent()).removeView(animation);
+            }
+        }
+    }
+
+    private void setupBrandingTitle() {
+        final CharSequence styledTitle = getFrostTubeFormattedTitle();
+        toolbarLayoutBinding.headerTitle.setText(styledTitle);
+
+        try {
+            final View drawerTitle = findViewById(R.id.drawer_header_newpipe_title);
+            if (drawerTitle instanceof android.widget.TextView) {
+                ((android.widget.TextView) drawerTitle).setText(styledTitle);
+            }
+        } catch (final Throwable ignored) {
+        }
+    }
+
+    public static CharSequence getFrostTubeFormattedTitle() {
+        final SpannableStringBuilder ssb = new SpannableStringBuilder();
+
+        final SpannableString frost = new SpannableString("FROST");
+        // Silver glassy metallic tint
+        frost.setSpan(new ForegroundColorSpan(0xFFE2E8F0), 0, frost.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        frost.setSpan(new StyleSpan(Typeface.BOLD), 0, frost.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        final SpannableString tube = new SpannableString("TUBE");
+        // Vibrant red
+        tube.setSpan(new ForegroundColorSpan(0xFFFF284D), 0, tube.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        tube.setSpan(new StyleSpan(Typeface.BOLD), 0, tube.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        ssb.append(frost).append(tube);
+        return ssb;
+    }
+
+    public void enterSearchMode(final String initialQuery) {
+        toolbarLayoutBinding.headerNormalGroup.setVisibility(View.GONE);
+        toolbarLayoutBinding.headerSearchEditGroup.setVisibility(View.VISIBLE);
+        if (initialQuery != null && !initialQuery.equals(toolbarLayoutBinding.searchEditText.getText().toString())) {
+            toolbarLayoutBinding.searchEditText.setText(initialQuery);
+        }
+        toolbarLayoutBinding.searchEditText.requestFocus();
+        showKeyboard(toolbarLayoutBinding.searchEditText);
+    }
+
+    public void exitSearchMode(final boolean popFragment) {
+        toolbarLayoutBinding.headerSearchEditGroup.setVisibility(View.GONE);
+        toolbarLayoutBinding.headerNormalGroup.setVisibility(View.VISIBLE);
+        toolbarLayoutBinding.headerTitle.setText(getFrostTubeFormattedTitle());
+        toolbarLayoutBinding.searchEditText.clearFocus();
+        hideKeyboard();
+
+        if (popFragment) {
+            final Fragment current = getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
+            if (current instanceof SearchFragment) {
+                getOnBackPressedDispatcher().onBackPressed();
+            }
+        }
+    }
+
+    private boolean isRootTabFragment(final Fragment fragment) {
+        return fragment instanceof MainFragment
+                || fragment instanceof SubscriptionFragment
+                || fragment instanceof GlassDownloadFragment
+                || fragment instanceof LibraryHubFragment;
+    }
+
+    private void updateHeaderNavigationIcon() {
+        final Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
+        final boolean isRoot = isRootTabFragment(fragment);
+        // Home uses the FrostTube mark as its leading affordance; keep the hamburger only
+        // on secondary pages where it is actually a back/navigation control.
+        toolbarLayoutBinding.btnHeaderNav.setVisibility(isRoot ? View.GONE : View.VISIBLE);
+
+        if (isRoot) {
+            toolbarLayoutBinding.btnHeaderNavIcon.setImageResource(R.drawable.ic_menu);
+            toolbarLayoutBinding.btnHeaderNav.setContentDescription(getString(R.string.drawer_open));
+        } else {
+            toolbarLayoutBinding.btnHeaderNavIcon.setImageResource(R.drawable.ic_arrow_back);
+            toolbarLayoutBinding.btnHeaderNav.setContentDescription(getString(R.string.back));
+        }
+
+        if (!(fragment instanceof SearchFragment)
+                && toolbarLayoutBinding.headerSearchEditGroup.getVisibility() == View.VISIBLE) {
+            exitSearchMode(false);
+        }
+    }
+
+    private void showKeyboard(final View view) {
+        if (view == null) return;
+        view.post(() -> {
+            final InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT);
+            }
+        });
+    }
+
+    private void hideKeyboard() {
+        final View currentFocus = getCurrentFocus();
+        if (currentFocus != null) {
+            final InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(currentFocus.getWindowToken(), 0);
+            }
+        }
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull final Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        final boolean isLand = newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE;
+        final boolean isPlayerExpanded = playerSheetController != null && playerSheetController.isExpanded();
+        if (isLand && isPlayerExpanded) {
+            mainBinding.floatingVerticalDuoPill.setVisibility(View.GONE);
+            mainBinding.groundedDockContainer.setVisibility(View.GONE);
+        } else if (!isPlayerExpanded) {
+            if (getRequestedOrientation() != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            }
+        }
+        if (playerSheetController != null) {
+            playerSheetController.onConfigurationChanged(newConfig);
+        }
+        if (adaptiveNavController != null) {
+            adaptiveNavController.onConfigurationChanged(newConfig);
+        }
+        updateFeedsPadding();
     }
 
     @Override
     protected void onDestroy() {
+        dismissStartupBranding();
         super.onDestroy();
         if (!isChangingConfigurations()) {
             StateSaver.clearStateFiles();
@@ -688,28 +676,15 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onResume() {
-        // Change the date format to match the selected language on resume
         Localization.initPrettyTime(Localization.resolvePrettyTime());
         super.onResume();
 
-        // Close drawer on return, and don't show animation,
-        // so it looks like the drawer isn't open when the user returns to MainActivity
-        mainBinding.getRoot().closeDrawer(GravityCompat.START, false);
-        try {
-            final int selectedServiceId = ServiceHelper.getSelectedServiceId(this);
-            final String selectedServiceName = NewPipe.getService(selectedServiceId)
-                    .getServiceInfo().getName();
-            drawerHeaderBinding.drawerHeaderServiceView.setText(selectedServiceName);
-            drawerHeaderBinding.drawerHeaderServiceIcon.setImageResource(ServiceHelper
-                    .getIcon(selectedServiceId));
-
-            drawerHeaderBinding.drawerHeaderServiceView.post(() -> drawerHeaderBinding
-                    .drawerHeaderServiceView.setSelected(true));
-            drawerHeaderBinding.drawerHeaderActionButton.setContentDescription(
-                    getString(R.string.drawer_header_description) + selectedServiceName);
-        } catch (final Exception e) {
-            ErrorUtil.showUiErrorSnackbar(this, "Setting up service toggle", e);
+        if (playerSheetController == null || !playerSheetController.isExpanded()) {
+            if (getRequestedOrientation() != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            }
         }
+        updateFeedsPadding();
 
         if (sharedPreferences.getBoolean(Constants.KEY_THEME_CHANGE, false)) {
             if (DEBUG) {
@@ -726,15 +701,11 @@ public class MainActivity extends AppCompatActivity {
             sharedPrefEditor.putBoolean(Constants.KEY_MAIN_PAGE_CHANGE, false).apply();
             NavigationHelper.openMainActivity(this);
         }
-
-        final boolean isHistoryEnabled = sharedPreferences.getBoolean(
-                getString(R.string.enable_watch_history_key), true);
-        drawerLayoutBinding.navigation.getMenu().findItem(ITEM_ID_HISTORY)
-                .setVisible(isHistoryEnabled);
     }
 
     @Override
     protected void onNewIntent(final Intent intent) {
+        dismissStartupBranding();
         if (DEBUG) {
             Log.d(TAG, "onNewIntent() called with: intent = [" + intent + "]");
         }
@@ -773,14 +744,40 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "onBackPressed() called");
         }
 
-        if (DeviceUtils.isTv(this)) {
-            if (mainBinding.getRoot().isDrawerOpen(drawerLayoutBinding.navigation)) {
-                mainBinding.getRoot().closeDrawers();
+        if (startupAnimation != null) {
+            dismissStartupBranding();
+            return;
+        }
+        // Back may interrupt an in-flight sheet expansion without restarting playback.
+        if (playerSheetController != null
+                && playerSheetController.getBehavior().getState() == BottomSheetBehavior.STATE_SETTLING) {
+            playerSheetController.collapse();
+            return;
+        }
+
+        // 1. Restore portrait orientation when navigating back from any landscape view
+        if (org.schabi.newpipe.util.DeviceUtils.isLandscape(this)) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        }
+
+        // 2. Delegate to active video player first so it can exit fullscreen / handle internal stack
+        final Fragment fragmentPlayer = getSupportFragmentManager()
+                .findFragmentById(R.id.fragment_player_holder);
+        if (fragmentPlayer instanceof BackPressable && !bottomSheetHiddenOrCollapsed()) {
+            if (((BackPressable) fragmentPlayer).onBackPressed()) {
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                 return;
             }
         }
 
-        // In case bottomSheet is not visible on the screen or collapsed we can assume that the user
+        // 3. If player is expanded, collapse it to compact mini-player card above dock
+        if (playerSheetController != null && playerSheetController.isExpanded()) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            playerSheetController.collapse();
+            return;
+        }
+
+        // 4. In case bottomSheet is not visible on the screen or collapsed we can assume that the user
         // interacts with a fragment inside fragment_holder so all back presses should be
         // handled by it
         if (bottomSheetHiddenOrCollapsed()) {
@@ -799,11 +796,10 @@ public class MainActivity extends AppCompatActivity {
                 // and no other CommentRepliesFragments are on top of the back stack
                 // to show the top level comments again.
                 openDetailFragmentFromCommentReplies(fm, false);
+                return;
             }
 
         } else {
-            final Fragment fragmentPlayer = getSupportFragmentManager()
-                    .findFragmentById(R.id.fragment_player_holder);
             // If current fragment implements BackPressable (i.e. can/wanna handle back press)
             // delegate the back press to it
             if (fragmentPlayer instanceof BackPressable) {
@@ -815,7 +811,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        if (getSupportFragmentManager().getBackStackEntryCount() == 1) {
+        if (getSupportFragmentManager().getBackStackEntryCount() <= 1) {
             finish();
         } else {
             super.onBackPressed();
@@ -902,7 +898,8 @@ public class MainActivity extends AppCompatActivity {
         final Fragment fragment =
                 getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
         if (!(fragment instanceof SearchFragment)) {
-            toolbarLayoutBinding.toolbarSearchContainer.getRoot().setVisibility(View.GONE);
+            toolbarLayoutBinding.headerSearchEditGroup.setVisibility(View.GONE);
+            toolbarLayoutBinding.headerNormalGroup.setVisibility(View.VISIBLE);
         }
 
         final ActionBar actionBar = getSupportActionBar();
@@ -910,7 +907,7 @@ public class MainActivity extends AppCompatActivity {
             actionBar.setDisplayHomeAsUpEnabled(false);
         }
 
-        updateDrawerNavigation();
+        updateHeaderNavigationIcon();
 
         return true;
     }
@@ -956,25 +953,7 @@ public class MainActivity extends AppCompatActivity {
     //////////////////////////////////////////////////////////////////////////*/
 
     private void updateDrawerNavigation() {
-        if (getSupportActionBar() == null) {
-            return;
-        }
-
-        final Fragment fragment = getSupportFragmentManager()
-                .findFragmentById(R.id.fragment_holder);
-        if (fragment instanceof MainFragment) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(false);
-            if (toggle != null) {
-                toggle.syncState();
-                toolbarLayoutBinding.toolbar.setNavigationOnClickListener(v -> mainBinding.getRoot()
-                        .open());
-                mainBinding.getRoot().setDrawerLockMode(DrawerLayout.LOCK_MODE_UNDEFINED);
-            }
-        } else {
-            mainBinding.getRoot().setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            toolbarLayoutBinding.toolbar.setNavigationOnClickListener(v -> onHomeButtonPressed());
-        }
+        updateHeaderNavigationIcon();
     }
 
     private void handleIntent(final Intent intent) {

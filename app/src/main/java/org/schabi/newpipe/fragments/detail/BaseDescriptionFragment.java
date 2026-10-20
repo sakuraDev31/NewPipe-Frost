@@ -263,7 +263,7 @@ public abstract class BaseDescriptionFragment extends BaseFragment {
 
     private void onTagClick(final View chip) {
         if (getParentFragment() != null) {
-            NavigationHelper.openSearchFragment(getParentFragment().getParentFragmentManager(),
+            NavigationHelper.openSearchFragment(getFM(),
                     getServiceId(), ((Chip) chip).getText().toString());
         }
     }

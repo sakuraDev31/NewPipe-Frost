@@ -67,6 +67,12 @@ public class LoadingDialog extends DialogFragment {
     public void onViewCreated(@NonNull final View view, @Nullable final Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         dialogLoadingBinding = DownloadLoadingDialogBinding.bind(view);
+        if (dialogLoadingBinding.toolbarLayout.headerNormalGroup != null) {
+            dialogLoadingBinding.toolbarLayout.headerNormalGroup.setVisibility(View.GONE);
+        }
+        if (dialogLoadingBinding.toolbarLayout.headerSearchEditGroup != null) {
+            dialogLoadingBinding.toolbarLayout.headerSearchEditGroup.setVisibility(View.GONE);
+        }
         initToolbar(dialogLoadingBinding.toolbarLayout.toolbar);
     }
 
