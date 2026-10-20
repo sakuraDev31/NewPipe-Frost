@@ -157,6 +157,7 @@ public final class VideoDetailFragment
     private boolean showComments;
     private boolean showRelatedItems;
     private boolean showDescription;
+    private boolean descriptionExpanded = false;
     private boolean tabSettingsChanged = false;
     private FragmentManager.OnBackStackChangedListener playerBackStackListener;
     private final Handler ambientHandler = new Handler(Looper.getMainLooper());
@@ -469,8 +470,7 @@ public final class VideoDetailFragment
 
     private void setOnClickListeners() {
         binding.detailTitleRootLayout.setOnClickListener(v -> toggleTitleAndSecondaryControls());
-        binding.detailDescriptionPreview.setOnClickListener(v ->
-                showDetailPanel(VideoInfoSheet.DESCRIPTION));
+        binding.detailDescriptionPreview.setOnClickListener(v -> toggleDescriptionPreview());
         binding.detailCommentsEntry.setOnClickListener(v ->
                 showDetailPanel(VideoInfoSheet.COMMENTS));
         binding.detailRelatedEntry.setOnClickListener(v ->
@@ -623,6 +623,16 @@ public final class VideoDetailFragment
             binding.detailSecondaryControlPanel.setVisibility(View.GONE);
         }
         // view pager height has changed, update the tab layout
+        updateTabLayoutVisibility();
+    }
+
+    private void toggleDescriptionPreview() {
+        descriptionExpanded = !descriptionExpanded;
+        binding.detailDescriptionPreview.setMaxLines(descriptionExpanded ? Integer.MAX_VALUE : 3);
+        binding.detailDescriptionPreview.setEllipsize(descriptionExpanded
+                ? null : android.text.TextUtils.TruncateAt.END);
+        binding.detailDescriptionPreview.setContentDescription(getString(
+                descriptionExpanded ? R.string.collapse_description : R.string.expand_description));
         updateTabLayoutVisibility();
     }
 
@@ -1492,6 +1502,9 @@ public final class VideoDetailFragment
         binding.detailVideoTitleView.setText(title);
         binding.detailVideoTitleView.setMaxLines(2);
         animate(binding.detailVideoTitleView, true, 0);
+        descriptionExpanded = false;
+        binding.detailDescriptionPreview.setMaxLines(3);
+        binding.detailDescriptionPreview.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
         binding.detailToggleSecondaryControlsView.setVisibility(View.GONE);
         binding.detailTitleRootLayout.setClickable(false);

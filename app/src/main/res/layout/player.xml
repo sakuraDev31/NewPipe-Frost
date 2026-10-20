@@ -28,7 +28,8 @@
         android:layout_height="40dp"
         android:layout_alignParentTop="true"
         android:background="@drawable/player_controls_top_background"
-        android:importantForAccessibility="no" />
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
 
     <com.google.android.exoplayer2.ui.SubtitleView
         android:id="@+id/subtitleView"

@@ -325,6 +325,8 @@
     </plurals>
     <string name="no_comments">No comments</string>
     <string name="comments_are_disabled">Comments are disabled</string>
+    <string name="expand_description">Expand description</string>
+    <string name="collapse_description">Collapse description</string>
     <string name="no_streams">No streams</string>
     <string name="no_live_streams">No live streams</string>
     <plurals name="new_streams">

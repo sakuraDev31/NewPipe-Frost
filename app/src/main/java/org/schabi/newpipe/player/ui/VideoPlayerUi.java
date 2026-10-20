@@ -285,6 +285,8 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
             final var params = binding.playerStatusScrim.getLayoutParams();
             params.height = top + DeviceUtils.dpToPx(16, context);
             binding.playerStatusScrim.setLayoutParams(params);
+            binding.playerStatusScrim.setVisibility(((MainPlayerUi) this).isFullscreen()
+                    ? View.VISIBLE : View.GONE);
             return insets;
         });
         ViewCompat.requestApplyInsets(binding.playbackControlRoot);

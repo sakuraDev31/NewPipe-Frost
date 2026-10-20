@@ -933,6 +933,8 @@ public final class MainPlayerUi extends VideoPlayerUi implements View.OnLayoutCh
         fragmentListener.onFullscreenStateChanged(isFullscreen);
 
         binding.metadataView.setVisibility(isFullscreen ? View.VISIBLE : View.GONE);
+        binding.playerStatusScrim.setVisibility(isFullscreen ? View.VISIBLE : View.GONE);
+        androidx.core.view.ViewCompat.requestApplyInsets(binding.playbackControlRoot);
         binding.playerCloseButton.setVisibility(isFullscreen ? View.GONE : View.VISIBLE);
         setupScreenRotationButton();
     }
