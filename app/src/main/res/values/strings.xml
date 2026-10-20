@@ -47,7 +47,7 @@
     <string name="download_path_audio_summary">Downloaded audio files are stored here</string>
     <string name="download_path_audio_dialog_title">Choose download folder for audio files</string>
     <string name="default_resolution_title">Default resolution</string>
-    <string name="default_popup_resolution_title">Default popup resolution</string>
+    <string name="default_popup_resolution_title">Default picture-in-picture resolution</string>
     <string name="show_higher_resolutions_title">Show higher resolutions</string>
     <string name="show_higher_resolutions_summary">Only some devices can play 2K/4K videos</string>
     <string name="play_with_kodi_title">Play with Kodi</string>
@@ -79,8 +79,8 @@
     <string name="light_theme_title">Light</string>
     <string name="dark_theme_title">Dark</string>
     <string name="black_theme_title">Black</string>
-    <string name="popup_remember_size_pos_title">Remember popup properties</string>
-    <string name="popup_remember_size_pos_summary">Remember last size and position of popup</string>
+    <string name="popup_remember_size_pos_title">Remember picture-in-picture properties</string>
+    <string name="popup_remember_size_pos_summary">Remember last size and position of picture-in-picture</string>
     <string name="use_inexact_seek_title">Use fast inexact seek</string>
     <string name="use_inexact_seek_summary">Inexact seek allows the player to seek to positions faster with reduced precision. Seeking for 5, 15 or 25 seconds doesn\'t work with this</string>
     <string name="seek_duration_title">Fast-forward/-rewind seek duration</string>
@@ -136,7 +136,7 @@
     <string name="start_main_player_fullscreen_summary">Do not start videos in the mini player, but turn to fullscreen mode directly, if auto rotation is locked. You can still access the mini player by exiting fullscreen</string>
     <string name="autoplay_title">Autoplay</string>
     <string name="show_hold_to_append_title">Show \"Hold to enqueue\" tip</string>
-    <string name="show_hold_to_append_summary">Show tip when pressing the background or the popup button in video \"Details:\"</string>
+    <string name="show_hold_to_append_summary">Show tip when pressing the background or the picture-in-picture button in video \"Details:\"</string>
     <string name="unsupported_url">Unsupported URL</string>
     <string name="unsupported_url_dialog_message">Could not recognize the URL. Open with another app?</string>
     <string name="default_content_country_title">Default content country</string>
@@ -160,7 +160,7 @@
     <string name="settings_category_player_notification_summary">Configure current playing stream notification</string>
     <string name="settings_category_backup_restore_title">Backup and restore</string>
     <string name="background_player_playing_toast">Playing in background</string>
-    <string name="popup_playing_toast">Playing in popup mode</string>
+    <string name="popup_playing_toast">Playing in picture-in-picture mode</string>
     <string name="picture_in_picture_playing_toast">Playing in picture-in-picture mode</string>
     <string name="content">Content</string>
     <string name="show_age_restricted_content_title">Show age restricted content</string>
@@ -258,7 +258,7 @@
     <string name="restore_defaults">Restore defaults</string>
     <string name="restore_defaults_confirmation">Do you want to restore defaults?</string>
     <string name="permission_display_over_apps">Give permission to display over other apps</string>
-    <string name="permission_display_over_apps_message">In order to use the Popup Player, please select %1$s in the following Android settings menu and enable %2$s.</string>
+    <string name="permission_display_over_apps_message">Picture-in-picture does not require display-over-other-apps permission.</string>
     <string name="permission_display_over_apps_permission_name">“Allow display over other apps”</string>
     <!-- error activity -->
     <string name="error_report_notification_title">NewPipe encountered an error, tap to report</string>
@@ -353,7 +353,7 @@
     <string name="msg_failed_to_copy">Failed to copy to clipboard</string>
     <string name="no_available_dir">Please define a download folder later in settings</string>
     <string name="no_dir_yet">No download folder set yet, choose the default download folder now</string>
-    <string name="msg_popup_permission">This permission is needed to\nopen in popup mode</string>
+    <string name="msg_popup_permission">Picture-in-picture does not require overlay permission.</string>
     <string name="one_item_deleted">1 item deleted.</string>
     <!-- reCAPTCHA -->
     <string name="title_activity_recaptcha">reCAPTCHA challenge</string>
@@ -442,7 +442,7 @@
     <string name="enqueue_next_stream">Enqueue next</string>
     <string name="enqueued_next">Enqueued next</string>
     <string name="start_here_on_background">Start playing in the background</string>
-    <string name="start_here_on_popup">Start playing in a popup</string>
+    <string name="start_here_on_popup">Start playing in picture-in-picture</string>
     <string name="loading_stream_details">Loading stream details…</string>
     <!-- Drawer -->
     <string name="drawer_open">Open Drawer</string>

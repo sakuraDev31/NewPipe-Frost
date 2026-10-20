@@ -144,9 +144,11 @@ public final class NavigationHelper {
     public static void playOnPopupPlayer(final Context context,
                                          final PlayQueue queue,
                                          final boolean resumePlayback) {
-        Toast.makeText(context, R.string.picture_in_picture_playing_toast, Toast.LENGTH_SHORT)
-                .show();
-        playOnMainPlayer(context, queue, true);
+        if (context instanceof MainActivity) {
+            ((MainActivity) context).enterPictureInPictureForPlayer();
+        } else {
+            playOnMainPlayer(context, queue, true);
+        }
     }
 
     public static void playOnBackgroundPlayer(final Context context,

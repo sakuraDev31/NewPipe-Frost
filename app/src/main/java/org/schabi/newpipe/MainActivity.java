@@ -30,6 +30,7 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
 import android.graphics.Typeface;
+import android.graphics.Rect;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.SpannableString;
@@ -47,6 +48,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -297,17 +299,51 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onUserLeaveHint() {
         super.onUserLeaveHint();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                && !isInPictureInPictureMode()
-                && PlayerHolder.getInstance().isPlaying()
-                && PlayerHolder.getInstance().getType() == PlayerType.MAIN) {
-            final PictureInPictureParams.Builder params = new PictureInPictureParams.Builder()
-                    .setAspectRatio(new Rational(16, 9));
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                params.setAutoEnterEnabled(true);
-            }
-            enterPictureInPictureMode(params.build());
+        enterPictureInPictureForPlayer();
+    }
+
+    /**
+     * Enters system PiP for the active video player. This is also used by the former popup
+     * action, so the action does not merely show a toast while leaving the video in the app.
+     */
+    public boolean enterPictureInPictureForPlayer() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O
+                || isInPictureInPictureMode()
+                || !PlayerHolder.getInstance().isPlaying()
+                || PlayerHolder.getInstance().getType() != PlayerType.MAIN) {
+            return false;
         }
+        if (playerSheetController != null && !playerSheetController.isExpanded()) {
+            playerSheetController.expand();
+        }
+        final PictureInPictureParams.Builder params = new PictureInPictureParams.Builder()
+                .setAspectRatio(new Rational(16, 9));
+        final Rect sourceRect = new Rect();
+        if (mainBinding.fragmentPlayerHolder.getGlobalVisibleRect(sourceRect)) {
+            params.setSourceRectHint(sourceRect);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            params.setAutoEnterEnabled(true);
+        }
+        final boolean entered = enterPictureInPictureMode(params.build());
+        if (entered) {
+            Toast.makeText(this, R.string.picture_in_picture_playing_toast,
+                    Toast.LENGTH_SHORT).show();
+            mainBinding.getRoot().postDelayed(() -> moveTaskToBack(true), 100);
+        }
+        return entered;
+    }
+
+    @Override
+    public void onPictureInPictureModeChanged(final boolean isInPictureInPictureMode) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode);
+        if (mainBinding == null) {
+            return;
+        }
+        final int visibility = isInPictureInPictureMode ? View.GONE : View.VISIBLE;
+        toolbarLayoutBinding.getRoot().setVisibility(visibility);
+        mainBinding.groundedDockContainer.setVisibility(visibility);
+        mainBinding.floatingVerticalDuoPill.setVisibility(visibility);
     }
 
     public PlayerSheetController getPlayerSheetController() {
