@@ -1948,6 +1948,8 @@ public final class VideoDetailFragment
 
         setHeightThumbnail();
         tryAddVideoPlayerView();
+        player.UIs().get(MainPlayerUi.class).ifPresent(ui ->
+                binding.playerPlaceholder.post(ui::refreshVideoSurface));
     }
 
     @Override
@@ -1995,6 +1997,8 @@ public final class VideoDetailFragment
             }
         }
         setHeightThumbnail();
+        player.UIs().get(MainPlayerUi.class).ifPresent(ui ->
+                binding.playerPlaceholder.post(ui::refreshVideoSurface));
     }
 
     /*

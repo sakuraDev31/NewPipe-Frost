@@ -1786,6 +1786,28 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
         }
     }
 
+    /**
+     * Reconnect the decoder after a fullscreen/orientation layout change. SurfaceView may recreate
+     * its native surface while this player UI remains alive, which otherwise can leave a black
+     * foreground over a stream that is still playing.
+     */
+    public void refreshVideoSurface() {
+        if (player.getExoPlayer() == null || binding == null) {
+            return;
+        }
+        binding.surfaceView.post(() -> {
+            if (binding == null || player.getExoPlayer() == null) {
+                return;
+            }
+            if (binding.surfaceView.getHolder().getSurface().isValid()) {
+                player.getExoPlayer().setVideoSurfaceHolder(binding.surfaceView.getHolder());
+                if (player.isPlaying()) {
+                    binding.surfaceForeground.setVisibility(View.GONE);
+                }
+            }
+        });
+    }
+
     private void clearVideoSurface() {
         if (surfaceHolderCallback != null) {
             binding.surfaceView.getHolder().removeCallback(surfaceHolderCallback);
